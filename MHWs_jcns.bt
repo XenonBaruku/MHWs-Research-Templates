@@ -1,0 +1,141 @@
+//------------------------------------------------
+//--- 010 Editor v15.0.1 Binary Template
+//
+//      File: MHWs_jcns.bt
+//   Authors: XenonValstrax
+//   Version: 0.2
+//   Purpose: Parsing MHWilds Joint Constraints (*.jcns) files
+//  Category: MHWilds
+// File Mask: *.jcns.*
+//  ID Bytes: 
+//   History: 
+//------------------------------------------------
+
+struct HEADER 
+{
+    struct TAG
+    {
+        uint version;
+        byte type[4];
+        uint64 unkINT1;
+        uint64 unkOffset1;
+        uint64 unkINT1_1;
+        uint64 TableOffset;
+        uint64 unkINT1_2;
+        FSeek(unkOffset1);
+        uint64 unkINT2;
+        uint64 unkINT2_1;
+        FSeek(TableOffset);
+        uint64 RecordOffset;
+        uint64 unkINT2_2;
+    } Tags <comment="Usually unnecessary to modify.">;
+    FSeek(Tags.RecordOffset);
+    uint64 EndOfHeader;
+    uint64 BodyOffset;
+    uint64 EndOfBody;
+    uint64 UnknownINT64[7];
+    uint64 UnknownOffset;
+    uint64 ReferenceTableOffset;
+    short UnknownShort;
+    short ComponentAmount;
+    uint ReferenceAmount;
+    byte UnknownBytes[24];
+};
+
+struct AXIS
+{
+    float X <name="X-Axis", fgcolor=0x5042FF, bgcolor=0x000070>;
+    float Y <name="Y-Axis", fgcolor=0x00FF00, bgcolor=0x007000>;
+    float Z <name="Z-Axis", fgcolor=0xFFAA50, bgcolor=0x700000>;
+};
+
+struct WStringOffset
+{
+    uint64 WStrOffset;
+    local uint64 ReturnPos = FTell();
+    FSeek(WStrOffset);
+    wstring WString <bgcolor=0x666666, fgcolor=0xFF00FA>; //<fgcolor=0xFFBB70>;
+    FSeek(ReturnPos);
+};
+
+struct ConstraintInstance
+{
+    uint64 OffsetConstraintData;
+    local uint ReturnPos = FTell();
+    FSeek(OffsetConstraintData);
+    uint64 UnkINT64CI0 <name="UnknownINT64">;
+    WStringOffset ConstraintTarget <read=WString>;
+    uint64 InstanceHash <comment="Maybe bone hash.">;
+    uint64 UnkINT64CI1 <name="UnknownINT64", comment="Usually 771.">;
+    AXIS UnknownAxis[3] <open=true>;
+    float UnkFloat0;
+    local string readStr;
+    SPrintf(readStr, "%s - %u", ConstraintTarget.WString, InstanceHash);
+    //wstring ConstraintTarget <bgcolor=0x666666, fgcolor=0xFF00FA>;
+    FSeek(ReturnPos);
+};
+
+struct ConstraintSet
+{
+    uint64 UnkINT64CS0 <name="UnknownINT64">;
+    ConstraintInstance CInst <name="ConstraintInstance", read=readStr>;
+    WStringOffset ConstraintName <read=WString>;
+    uint64 UnknownINT64CS1 <name="UnknownINT64">;
+    uint64 ConstraintHash <comment="Maybe bone hash.">;
+    uint64 UnknownHash;
+    float UnknownFloat[4];
+    uint64 UnknownINT64CS2[2] <name="UnknownINT64">;
+    local string readStr;
+    SPrintf(readStr, "%s - %s [%u - %u]", ConstraintName.WString, CInst.ConstraintTarget.WString, ConstraintHash, CInst.InstanceHash);
+};
+
+
+struct REF
+{
+    uint64 Offset;
+    uint64 UnknownINT64;
+    if (Offset != 0)
+    {
+        local uint ReturnPos = FTell();
+        FSeek(Offset);
+        uint ConstraintHash <comment="Maybe bone hash.">;
+        uint InstanceHash <comment="Maybe bone hash.">;
+        local string str;
+        SPrintf(str, "%u - %u", (uint)ConstraintHash, (uint)InstanceHash);
+        FSeek(ReturnPos);
+    }
+};
+
+struct REFMAP
+{
+    local uint _ = 0;
+    for (_; _<header.ReferenceAmount; ++_)
+    {
+        REF Reference <read=str>;
+    }
+    
+};
+
+struct BODY
+{
+    
+    local uint _ = 0;
+    for (_; _<header.ComponentAmount; ++_)
+    {
+        //ConstraintSet CS <name="ConstraintSet", read=ReferenceHash>;
+        ConstraintSet CS <name="ConstraintSet", read=readStr>;
+    }
+    FSeek(header.ReferenceTableOffset);
+};
+
+HEADER header <name="JCNS Header">;
+if (header.ComponentAmount > 0)
+    {
+        FSeek(header.BodyOffset);
+        BODY body <name="JCNS Body", fgcolor=0xFFBD9A, open=true, read=header.ComponentAmount>;
+    }
+if (header.ReferenceAmount > 0)
+    {
+        FSeek(header.ReferenceTableOffset);
+        REFMAP RefMapping <name="JCNS References", read=header.ReferenceAmount>;
+    }
