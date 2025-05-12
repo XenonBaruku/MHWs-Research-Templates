@@ -3,7 +3,7 @@
 //
 //      File: MHWs_jcns.bt
 //   Authors: XenonValstrax
-//   Version: 0.3b
+//   Version: 0.3c
 //   Purpose: Parsing MHWilds Joint Constraints (*.jcns) files
 //  Category: MHWilds
 // File Mask: *.jcns.*
@@ -12,16 +12,15 @@
 //------------------------------------------------
 // - STILL WIP -
 //  TODO:
-//      1) Function:  Hash (murmur3_32) generates from WString
-//      2) Function:  Constraints editing
-//      3) Structure: Parsing the rest stuff
+//      1) Function:  Constraints editing
+//      2) Structure: Parsing the rest stuff
+//      3) Function: Full unicode support for Hash generate
 //      
 
 
 local string mode;
 
-///* - TYPES - *///
-//———————————————————————————————————————————————————
+//—————————————————/* - TYPES - */—————————————————//
 // AXIS_XYZ
 typedef struct
 {
@@ -50,33 +49,73 @@ typedef struct
     wstring WString <bgcolor=0x666666, fgcolor=0xFF00FA>; //<fgcolor=0xFFBB70>;
     FSeek(ReturnPos);
 } 
-WStringOffset <read=WString>;
+WStringOffset <read=WString, optimize=false>;
 
 typedef int hash <read=Str("%X", this), write="">;
 
-//___________________________________________________
 
 
+//———————————————/* - FUNCTIONS - */———————————————//
 
-///* - FUNCTIONS - *///
-//———————————————————————————————————————————————————
-
-void AddConstraint(string HashPair)
+void AddConstraint(wstring BoneNames)
 {
-    local uchar ObjectHash[10];
-    local uchar TargetHash[10];
-    Memcpy(ObjectHash, HashPair, 10);
-    Memcpy(TargetHash, HashPair, 10, 0, 11);
-    Printf("%u - %u\n",Atoi(ObjectHash), Atoi(TargetHash));
+    Printf("%s\n", BoneNames);
+    local byte ObjectName;
+    
+    local uint _;
+    local uint __;
+    local uint item = 0;
+    local byte buffer[1024];
+    for (_ = 0; _ < WStrlen(BoneNames); ++_)
+    {
+        if (BoneNames[_] != 0x3b && item < 1 ) { buffer[_] = BoneNames[_]; } 
+        else if (BoneNames[_] == 0x3b && item == 1)
+        {
+            for (__ = 0; __ < Strlen(buffer); ++__)
+            {
+                ObjectName[__] = buffer[__];
+            }
+            ++item;
+        }
+    }
+    Printf("%s, %d\n", Str(ObjectName), WStrlen(ObjectName));
 };
 
-void WriteHash(string Hash)
+
+// Function ConvertBytesToInts - from ConvertBytesToInts.1sc
+// Credit: Artur Babecki
+int64 ConvertBytesToInts (char type[],char dat[],int n)
 {
-    Printf("%s\n",Hash);
-    local string s1;
-    SPrintf(s1, "%d", Atoi(Hash));
-    Printf("%s\n",s1);
-};
+    //  type[] - target type ("short","int","int64")
+    //   dat[] - array of bytes
+    //      n  - starting position in the array
+    // result  - int64  - do cast (short),(int),(FILETIME) etc. after invoking function
+    //                    for other  data types   
+    local int i,size;
+    local int64 value;
+    switch(type)
+      {
+        case "short":  size=sizeof(int); break;
+        case "int":   size=sizeof(int); break;
+        case "int64": size=sizeof(int64); break;
+        default:    default: 
+        MessageBox( idCancel,"ConvertBytesToInts ()", "wrong data type specified : "+type);Exit(-1);
+        Printf("Wrong data type in conversion\n");return 0;
+     }
+    
+    if(sizeof(dat)<n+size) {  MessageBox( idCancel,"ConvertBytesToInts ()","request out of array");Exit(-1);}
+    
+    
+    if(IsLittleEndian())
+        for( i = 0; i <size; i++ )
+        {
+        value = (value << 8) + (uchar)dat[size-i+n-1];
+        }
+    else
+        for(i=size;i>0;i--)   
+        {value = (value << 8) + (uchar)dat[size-i+n];}
+    return value;
+}
 
 uint32 fmix32(uint32 h) 
 {
@@ -88,62 +127,70 @@ uint32 fmix32(uint32 h)
     return h;
 }
 
-// STILL WORING INCORRECTLY...
-uint32 murmur3_32(wstring key, uint64 offset) 
+uint32 murmur3_32(wstring key)
 {
     local uint32 c1 = 0xcc9e2d51;
     local uint32 c2 = 0x1b873593;
     local uint32 n = 0xe6546b64;
-    //local wstring dataWStr = key;
-    local wstring data = key;
     local uint32 len = WStrlen(key) * 2;
-    //local wchar_t data[len] = dataWStr;
+    local byte data[len];
+    
+    local uint32 __;
+    for (__ = 0; __ < len; __++)
+    {
+        if (__ % 2 != 0)
+        {
+            data[__] = 0;
+        }
+        else
+        {
+            data[__] = key[__ - __ / 2];
+        }
+    }
+    
     local uint32 nblocks = len / 4;
     local uint32 k1;
     
     local uint32 h1 = 0xFFFFFFFF;
     
-    local int i;
+    local byte kb[4] = 0;
+    local int ki;
+    local uint32 i;
     for (i = 0; i < nblocks; i++) 
     {
-        k1 = data[i];
+        kb[2] = (data[i * 4 + 2]);
+        ki = ConvertBytesToInts("int", kb, 0);
+        k1 = (data[i * 4 + 3] ) | ki | (data[i * 4 + 1]) | data[i * 4 + 0];
         k1 *= c1;
         k1 = (k1 << 15) | (k1 >> 17);
         k1 *= c2;
         h1 ^= k1;
+        h1 = (h1 << 13) | (h1 >> 19);
         h1 = h1 * 5 + 0xe6546b64;
     }
 
     local uint32 tail_index = nblocks * 4;
     k1 = 0;
-
     switch (len & 3) 
     {
-    case 3:
-        k1 ^= data[2] << 16;
-    case 2:
-        k1 ^= data[1] << 8;
-    case 1:
-        k1 ^= data[0];
-
-        k1 *= c1;
-        k1 = (k1 << 15) | (k1 >> 17);
-        k1 *= c2;
-        h1 ^= k2;
+        case 3: k1 ^= data[tail_index + 2] << 16;
+        case 2: k1 ^= data[tail_index + 1] << 8;
+        case 1:
+            k1 ^= data[tail_index + 0];
+            k1 *= c1;
+            k1 = (k1 << 15) | (k1 >> 17);
+            k1 *= c2;
+            h1 ^= k1;
     }
-
     h1 ^= len;
     h1 = fmix32(h1);
 
     return h1;
 }
 
-//___________________________________________________
 
 
-
-///* - STRUCTS - *///
-//———————————————————————————————————————————————————
+//————————————————/* - STRUCTS - */————————————————//
 // struct ConstraintTarget
 typedef struct
 {
@@ -159,7 +206,7 @@ typedef struct
     AXIS_XYZ UnknownAxis;
     AXIS_XYZW UnknownAxisQutermion;
     local string readStr;
-    local uint32 readHash = murmur3_32(Target.WString, Target.WStrOffset);
+    local hash readHash = murmur3_32(Target.WString);
     SPrintf(readStr, "%s - %X", Target.WString, readHash);
     wstring ConstraintTarget <name="Target: Name", bgcolor=0x666666, fgcolor=0xFF00FA>;
     FSeek(ReturnPos);
@@ -173,8 +220,8 @@ typedef struct
     ConstraintTarget CTarget <name="Constraint: Target">;
     WStringOffset ConstraintName <name="Object: Name">;
     uint64 PropertyOffset;
-    hash ObjectHash <name="Object: Hash", comment="Maybe bone hash.">;
-    hash PropertyHash <name="Property: Hash", comment="Maybe bone hash.">;
+    hash ObjectHash <name="Object: Hash", comment="Read from file.">;
+    hash PropertyHash <name="Property: Hash", comment="Material properties, etc.">;
     uint8 _UnknownByte0;
     uint8 TargetAmount;
     uint8 TransformationID;
@@ -187,14 +234,15 @@ typedef struct
     AXIS_XYZ _UnknownVector;
     uint64 UnknownINT64CS2[1] <name="UnknownINT64">;
     local string readStr;
-    SPrintf(readStr, "%s - %s [%X,%X]", ConstraintName.WString, CTarget.Target.WString, ObjectHash, CTarget.TargetHash);
+    local hash readHash = murmur3_32(ConstraintName.WString);
+    SPrintf(readStr, "%s - %s [%X,%X]", ConstraintName.WString, CTarget.Target.WString, readHash, CTarget.readHash);
 } 
 Constraint <read=readStr>;
 
 // struct ConstraintList
 typedef struct 
 {
-    byte CnsInput <name="Input hash pair here to add a new constraint...", read="ObjectHash,TargetHash", write=AddConstraint(Str(value))>;
+    byte CnsInput <name="Input bones here to add a new constraint...", read="Example: ObjectName;TargetName1;TargetName2;...", write=AddConstraint(Str(value))>;
     FSkip(-1);
     local uint _ = 0;
     for (_; _<header.ConstraintAmount; ++_)
@@ -240,12 +288,9 @@ typedef struct
 } 
 ReferenceList <read=header.ReferenceAmount>;
 
-//___________________________________________________
 
 
-
-///* - STRUCTURES - *///
-//———————————————————————————————————————————————————
+//———————————————/* - STRUCTURES - */———————————————//
 // HEADER
 typedef struct
 {
@@ -301,11 +346,9 @@ typedef struct
     }
 } BODY <name="JCNS Body", fgcolor=0xFFBD9A, open=true>;
 
-//___________________________________________________
 
 
-
-///* - FILE - *///
+//—————————————————/* - FILES - */—————————————————//
 HEADER header;
 if (header.Tags.version == 29) //MHWs
 {
