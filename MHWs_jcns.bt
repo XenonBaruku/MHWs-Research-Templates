@@ -3,7 +3,7 @@
 //
 //      File: MHWs_jcns.bt
 //   Authors: XenonValstrax
-//   Version: 0.4
+//   Version: 0.4b
 //   Purpose: Parsing MHWilds Joint Constraints (*.jcns) files
 //  Category: MHWilds
 // File Mask: *.jcns.*
@@ -16,29 +16,29 @@
 //      2) Structure: Parsing the rest stuff
 //      3) Function: Full unicode support for Hash generate
 //      
-
+LittleEndian();
 
 local string mode;
 
 //—————————————————/* - TYPES - */—————————————————//
-// AXIS_XYZ
+// vec3
 typedef struct
 {
-    float X <name="Axis X", fgcolor=0x5042FF, bgcolor=0x000070>;
-    float Y <name="Axis Y", fgcolor=0x00FF00, bgcolor=0x007000>;
-    float Z <name="Axis Z", fgcolor=0xFFAA50, bgcolor=0x700000>;
+    float axisX <name="Axis X", fgcolor=0x5042FF, bgcolor=0x000070>;
+    float axisY <name="Axis Y", fgcolor=0x00FF00, bgcolor=0x007000>;
+    float axisZ <name="Axis Z", fgcolor=0xFFAA50, bgcolor=0x700000>;
 } 
-AXIS_XYZ <read=Str("[%.3f, %.3f, %.3f]", X, Y, Z)>;
+vec3 <read=Str("[%.3f, %.3f, %.3f]", axisX, axisY, axisZ)>;
 
-// AXIS_XYZW
+// vec4
 typedef struct
 {
-    float X <name="Axis X", fgcolor=0x5042FF, bgcolor=0x000070>;
-    float Y <name="Axis Y", fgcolor=0x00FF00, bgcolor=0x007000>;
-    float Z <name="Axis Z", fgcolor=0xFFAA50, bgcolor=0x700000>;
-    float W <name="Axis W", fgcolor=0xEADE00, bgcolor=0x7E6A00>;
+    float axisX <name="Axis X", fgcolor=0x5042FF, bgcolor=0x000070>;
+    float axisY <name="Axis Y", fgcolor=0x00FF00, bgcolor=0x007000>;
+    float axisZ <name="Axis Z", fgcolor=0xFFAA50, bgcolor=0x700000>;
+    float axisW <name="Axis W", fgcolor=0xEADE00, bgcolor=0x7E6A00>;
 } 
-AXIS_XYZW <read=Str("[%.3f, %.3f, %.3f, %.3f]", X, Y, Z, W)>;
+vec4 <read=Str("[%.3f, %.3f, %.3f, %.3f]", axisX, axisY, axisZ, axisW)>;
 
 // WStringOffset
 typedef struct 
@@ -53,9 +53,9 @@ typedef struct
     }
     else local wstring WString = "(empty)";
 } 
-WStringOffset <read=WString>;
+WStringOffset <read=WString, write=WriteWStrStringOffset(Str(value), WStrOffset, WString)>;
 
-typedef int hash <read=Str("%X", this), write="">;
+typedef int hash <format=hex, write="">;
 
 
 
@@ -85,6 +85,17 @@ void AddConstraint(wstring BoneNames)
     Printf("%s, %d\n", Str(ObjectName), WStrlen(ObjectName));
 };
 
+void AddCSource(wstring name)
+{
+    
+};
+
+void WriteWStrStringOffset (wstring writeWStr, uint64 offset, wstring sourceWStr)
+{
+    //Printf("%s, %u, %s\n", writeWStr, offset, sourceWStr);
+    if (WStrlen(sourceWStr) == WStrlen(writeWStr))
+    { WriteWString(offset, writeWStr); }
+};
 
 // Function ConvertBytesToInts - from ConvertBytesToInts.1sc
 // Credit: Artur Babecki
@@ -221,9 +232,9 @@ typedef struct
     byte            _UnknownByte0;
     byte            UnknownExt2Amount;
     byte            UnknownBytes[6];
-    AXIS_XYZ        UnknownAxis;
-    AXIS_XYZ        UnknownAxis;
-    AXIS_XYZW       UnknownAxisQutermion;
+    vec3            UnknownAxis;
+    vec3            UnknownAxis;
+    vec4            UnknownAxisQutermion;
     
     local uint32 returnPos = FTell();
     FSeek(ExtOffset);
@@ -252,24 +263,27 @@ ConstraintSource <read=readStr>;
 // struct ConstraintSourceList
 typedef struct
 {
-    uint64 OffsetSourceTable <name="offset">;
-    local uint ReturnPos = FTell();
-    FSkip(25);
-    uint8 SourceAmount;
-    FSeek(ReturnPos);
-    FSeek(OffsetSourceTable);
+    byte CnsInput <name="Input name here to add source...", read="  <Object Name>  ", write=AddCSource(WStr(value))>;
+    FSkip(-1);
     
     local uint _;
-    for (_; _ < SourceAmount; ++_) { ConstraintSource CSource <name="Constraint: Source">; }
-    FSeek(ReturnPos);
+    for (_; _ < parentof(this).SourceAmount; ++_) { ConstraintSource CSource <name="Constraint: Source">; }
+    
 } 
-ConstraintSourceList <name="Constraint: Source List", read=SourceAmount>;
+ConstraintSourceList <name="Constraint: Source List", read=Str("%u", parentof(this).SourceAmount)>;
 
 // struct Constraint
 typedef struct
 {
     uint64                 UnkUINT64CS0 <name="UnknownUINT64">;
-    ConstraintSourceList   CSourceList <open=true>;
+    uint64                 OffsetSourceList;
+    local uint ReturnPos = FTell();
+    FSkip(25);
+    uint8                  SourceAmount;
+    FSeek(ReturnPos);
+    FSeek(OffsetSourceList);
+    ConstraintSourceList   CSourceList <open=suppress>;
+    FSeek(ReturnPos);
     WStringOffset          ObjectName <name="Object: Name">;
     WStringOffset          MaterialProperty;
     hash                   ObjectHash <name="Object: Hash", comment="Read from file.">;
@@ -278,12 +292,12 @@ typedef struct
     uint8                  SourceAmount <hidden=true>;
     enum <uint8>           TransformationID { Location, Rotation, Scale, BSUnk0, MatUnk0=7, MatUnk1, MatUnk2, MatUnk3, MatUnk4 } Transformation;
     uint8                  _UnknownByte1;
-    enum <uint8>           AxisID { X, Y, Z, W } Axis;
     uint8                  _UnknownByte2;
+    enum <uint8>           AxisID { X, Y, Z, W } Axis;
     uint8                  _UnknownByte3;
     uint8                  _UnknownByte4;
     float                  _UnknownFloat[3];
-    AXIS_XYZ               _UnknownVector;
+    vec3                   _UnknownVector;
     uint64                 UnknownINT64CS2 <name="UnknownINT64">;
     local string readStr;
     local hash readHash = murmur3_32(ObjectName.WString);
@@ -356,6 +370,26 @@ typedef struct
     uint64   offset;
     local uint returnPos = FTell();
     FSeek(offset);
+    uint32   ID;
+    vec3     UnknownAxis;
+    FSeek(returnPos);
+} 
+Unk2T <read=ID>;
+
+typedef struct
+{
+    Unk2T      UnknownObject;
+    hash       UnknownHash;
+    uint32     UnknownUNIT32;
+} 
+Unk2C <read=Str("%X[%u]", UnknownHash, UnknownObject.ID)>;
+
+typedef struct
+{
+    
+    uint64   offset;
+    local uint returnPos = FTell();
+    FSeek(offset);
     hash     UnknownHash;
     float    UnknownFloat;
     uint64   UnknownUNIT64;
@@ -368,10 +402,10 @@ typedef struct
     Unk3T      UnknownObject;
     hash       UnknownHash;
     uint32     UnknownUNIT32;
-    AXIS_XYZ   UnknownAxis[4];
+    vec3       UnknownAxis[4];
     uint64     UnknownUINT64[2];
 } 
-Unk3C <read=Str("%X << %X", UnknownHash, UnknownObject.UnknownHash)>;
+Unk3C <read=Str("%X - %X", UnknownHash, UnknownObject.UnknownHash)>;
 
 
 
@@ -399,19 +433,28 @@ typedef struct
     uint64 EndOfHeader;
     uint64 BodyOffset;
     uint64 EndOfBody;
-    uint64 UnknownINT64[7] <hidden=true>;
+    uint64 UnknownINT64;
+    uint64 UnknownINT64;
+    uint64 secondSectionOffset;
+    uint64 UniqueHashTableOffset;
+    uint64 thirdSectionOffset;
+    uint64 UnknownINT64;
+    uint64 UnknownINT64;
     uint64 SectionOffset;
     uint64 ReferenceTableOffset;
     uint16 _UnknownUINT16;
     uint16 ConstraintAmount;
     uint16 ReferenceAmount;
-    uint16 _UnknownShorts[5] <hidden=true>;
-    uint32 UniqueTableAmount;
+    uint16 _UnknownShorts[3] <hidden=true>;
+    uint16 UniqueTable2Amount;
+    uint16 UniqueHashAmount;
+    uint16 UniqueTable3Amount;
+    uint16 _UnknownUINT16;
     uint8  SectionAmount;
     local uint64 returnPos = FTell();
     FSeek(SectionOffset);
     local uint8 _;
-    for (_; _ < SectionAmount; ++_) { uint Section; };
+    for (_; _ < SectionAmount; ++_) uint Section;
     FSeek(returnPos);
     byte UnknownBytes[11] <hidden=true>;
     local string readStr;
@@ -432,17 +475,28 @@ typedef struct
         ReferenceList References;
     }
 } 
-BODY0 <name="JCNS General Body", fgcolor=0xFFBD9A, open=true>;
+BODY0 <name="JCNS Section (Type 0)", fgcolor=0xFFBD9A, open=true>;
 
 typedef struct
 {
     local uint _;
-    for (_; _ < header.UniqueTableAmount; ++_)
-    {
-        Unk3C CnsAim <name="AimConstraint">;
-    }
+    for (_; _ < header.UniqueTable2Amount; ++_) Unk2C Cns2 <name="UnknownConstraint2">;
 }
-BODY3 <name="JCNS Aim Body", fgcolor=0xFF7CEF, open=true>;
+BODY2 <name="JCNS Section (Type 2)", fgcolor=0xFF7CEF, open=true>;
+
+typedef struct
+{
+    local uint _;
+    for (_; _ < header.UniqueHashAmount; ++_)   hash UnknownHash;
+}
+HASHTABLE <name="JCNS Unknown Hash Table", fgcolor=0xFF7CEF>;
+
+typedef struct
+{
+    local uint _;
+    for (_; _ < header.UniqueTable3Amount; ++_) Unk3C Cns3 <name="UnknownConstraint3">;
+}
+BODY3 <name="JCNS Section (Type 3)", fgcolor=0xFF7CEF, open=true>;
 
 
 
@@ -453,7 +507,7 @@ switch (header.Tags.version)
 {
     case 29: // MHWs
         mode = "MHWs";
-        local uint _;
+        /*local uint _;
         for (_; _ < header.SectionAmount; ++_)
         {
             switch (header.Section[_])
@@ -473,7 +527,31 @@ switch (header.Tags.version)
                     } 
                     break;
             }
-        }
+        }*/
+        struct
+        {
+            if (header.ConstraintAmount > 0)
+            {
+                FSeek(header.BodyOffset);
+                BODY0 body0;
+                FSeek(header.EndOfBody);
+            }
+            if (header.UniqueTable2Amount != 0)
+            {
+                FSeek(header.secondSectionOffset);
+                BODY2 body2;
+            }
+            if (header.UniqueHashAmount != 0)
+            {
+                FSeek(header.UniqueHashTableOffset);
+                HASHTABLE hashtbl;
+            }
+            if (header.UniqueTable3Amount != 0)
+            {
+                FSeek(header.thirdSectionOffset);
+                BODY3 body3;
+            }
+        } MainBody <name="JCNS Body">;
     case 21: // MHRS
         mode = "MHRS";
     case 16: // RE8
