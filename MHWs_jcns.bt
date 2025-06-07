@@ -232,8 +232,8 @@ typedef struct
     byte            _UnknownByte[2];
     byte            SourceAxis <name="_UnknownByte (SourceAxis?)">;
     byte            UnknownBytes[5];
-    vec3            UnknownAxis;
-    vec3            UnknownAxis;
+    vec3            MapFromAxis <name="MapFrom: Axis">;
+    vec3            MapToAxis <name="MapTo: Axis">;
     vec4            UnknownAxisQutermion;
     
     local uint32 returnPos = FTell();
