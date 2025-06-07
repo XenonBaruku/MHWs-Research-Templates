@@ -3,7 +3,7 @@
 //
 //      File: MHWs_jcns.bt
 //   Authors: XenonValstrax
-//   Version: 0.4b
+//   Version: 0.4c
 //   Purpose: Parsing MHWilds Joint Constraints (*.jcns) files
 //  Category: MHWilds
 // File Mask: *.jcns.*
@@ -55,7 +55,7 @@ typedef struct
 } 
 WStringOffset <read=WString, write=WriteWStrStringOffset(Str(value), WStrOffset, WString)>;
 
-typedef int hash <format=hex, write="">;
+typedef uint32 hash <format=hex>;//, write="">;
 
 
 
@@ -229,9 +229,9 @@ typedef struct
     WStringOffset   SourceName <name="Source: Name">;
     hash            SourceHash <name="Source: Hash", comment="Maybe bone hash.">;
     uint            UnknownExt1Amount;
-    byte            _UnknownByte0;
-    byte            UnknownExt2Amount;
-    byte            UnknownBytes[6];
+    byte            _UnknownByte[2];
+    byte            SourceAxis <name="_UnknownByte (SourceAxis?)">;
+    byte            UnknownBytes[5];
     vec3            UnknownAxis;
     vec3            UnknownAxis;
     vec4            UnknownAxisQutermion;
@@ -248,10 +248,10 @@ typedef struct
     {
         UnknownSourceExt1 SrcExt1;
     }
-    for (_ = 0; _ < UnknownExt2Amount; ++_)
-    {
-        UnknownSourceExt2 SrcExt2;
-    }
+    //for (_ = 0; _ < UnknownExt2Amount; ++_)
+    //{
+    //    UnknownSourceExt2 SrcExt2;
+    //}
     FSeek(returnPos);
     
     local string readStr;
@@ -263,8 +263,8 @@ ConstraintSource <read=readStr>;
 // struct ConstraintSourceList
 typedef struct
 {
-    byte CnsInput <name="Input name here to add source...", read="  <Object Name>  ", write=AddCSource(WStr(value))>;
-    FSkip(-1);
+    //byte CnsInput <name="Input name here to add source...", read="  <Object Name>  ", write=AddCSource(WStr(value))>;
+    //FSkip(-1);
     
     local uint _;
     for (_; _ < parentof(this).SourceAmount; ++_) { ConstraintSource CSource <name="Constraint: Source">; }
@@ -293,7 +293,7 @@ typedef struct
     enum <uint8>           TransformationID { Location, Rotation, Scale, BSUnk0, MatUnk0=7, MatUnk1, MatUnk2, MatUnk3, MatUnk4 } Transformation;
     uint8                  _UnknownByte1;
     uint8                  _UnknownByte2;
-    enum <uint8>           AxisID { X, Y, Z, W } Axis;
+    enum <uint8>           AxisID { X, Y, Z, W } TargetAxis;
     uint8                  _UnknownByte3;
     uint8                  _UnknownByte4;
     float                  _UnknownFloat[3];
@@ -551,7 +551,7 @@ switch (header.Tags.version)
                 FSeek(header.thirdSectionOffset);
                 BODY3 body3;
             }
-        } MainBody <name="JCNS Body">;
+        } MainBody <name="JCNS Body", open=true>;
     case 21: // MHRS
         mode = "MHRS";
     case 16: // RE8
