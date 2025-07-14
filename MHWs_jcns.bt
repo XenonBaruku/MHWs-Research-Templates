@@ -3,7 +3,7 @@
 //
 //      File: MHWs_jcns.bt
 //   Authors: XenonValstrax
-//   Version: 0.4c
+//   Version: 0.41
 //   Purpose: Parsing MHWilds Joint Constraints (*.jcns) files
 //  Category: MHWilds
 // File Mask: *.jcns.*
@@ -39,6 +39,15 @@ typedef struct
     float axisW <name="Axis W", fgcolor=0xEADE00, bgcolor=0x7E6A00>;
 } 
 vec4 <read=Str("[%.3f, %.3f, %.3f, %.3f]", axisX, axisY, axisZ, axisW)>;
+
+// range
+typedef struct
+{
+    float min <name="Minimum">;
+    float unk <name="_Unknown">;
+    float max <name="Maximum">;
+} 
+range <read=Str("[%.3f, %.3f]", min, max)>;
 
 // WStringOffset
 typedef struct 
@@ -210,7 +219,7 @@ uint32 murmur3_32(wstring key)
 typedef struct
 {
     
-    float UnknownFloat[6];
+    float UnknownFloat32[6];
     uint32 UnknownUINT32;
 } 
 UnknownSourceExt1;
@@ -218,7 +227,7 @@ UnknownSourceExt1;
 typedef struct
 {
     
-    float UnknownFloat[3];
+    float UnknownFloat32[3];
 } 
 UnknownSourceExt2;
 
@@ -229,12 +238,12 @@ typedef struct
     WStringOffset   SourceName <name="Source: Name">;
     hash            SourceHash <name="Source: Hash", comment="Maybe bone hash.">;
     uint            UnknownExt1Amount;
-    byte            _UnknownByte[2];
-    byte            SourceAxis <name="_UnknownByte (SourceAxis?)">;
-    byte            UnknownBytes[5];
-    vec3            MapFromAxis <name="MapFrom: Axis">;
-    vec3            MapToAxis <name="MapTo: Axis">;
-    vec4            UnknownAxisQutermion;
+    byte            _UnknownBytes[8];
+    //byte            SourceAxis <name="_UnknownByte (SourceAxis?)">;
+    //byte            UnknownBytes[5];
+    range           MapFromRange <name="MapFrom: Range">;
+    range           MapToRange <name="MapTo: Range">;
+    float           UnknownFloat32[4];
     
     local uint32 returnPos = FTell();
     FSeek(ExtOffset);
@@ -256,7 +265,7 @@ typedef struct
     
     local string readStr;
     local hash readHash = murmur3_32(SourceName.WString);
-    SPrintf(readStr, "%s - %X", SourceName.WString, readHash);
+    SPrintf(readStr, "%s - %Xh", SourceName.WString, readHash);
 } 
 ConstraintSource <read=readStr>;
 
@@ -266,8 +275,14 @@ typedef struct
     //byte CnsInput <name="Input name here to add source...", read="  <Object Name>  ", write=AddCSource(WStr(value))>;
     //FSkip(-1);
     
+    uint64                 OffsetSourceList;
+    local uint ReturnPos = FTell();
+    FSkip(25);
+    uint8                  SourceAmount;
+    FSeek(OffsetSourceList);
     local uint _;
-    for (_; _ < parentof(this).SourceAmount; ++_) { ConstraintSource CSource <name="Constraint: Source">; }
+    for (_; _ < SourceAmount; ++_) { ConstraintSource CSource <name="Constraint: Source">; }
+    FSeek(ReturnPos);
     
 } 
 ConstraintSourceList <name="Constraint: Source List", read=Str("%u", parentof(this).SourceAmount)>;
@@ -276,14 +291,7 @@ ConstraintSourceList <name="Constraint: Source List", read=Str("%u", parentof(th
 typedef struct
 {
     uint64                 UnkUINT64CS0 <name="UnknownUINT64">;
-    uint64                 OffsetSourceList;
-    local uint ReturnPos = FTell();
-    FSkip(25);
-    uint8                  SourceAmount;
-    FSeek(ReturnPos);
-    FSeek(OffsetSourceList);
     ConstraintSourceList   CSourceList <open=suppress>;
-    FSeek(ReturnPos);
     WStringOffset          ObjectName <name="Object: Name">;
     WStringOffset          MaterialProperty;
     hash                   ObjectHash <name="Object: Hash", comment="Read from file.">;
@@ -296,15 +304,15 @@ typedef struct
     enum <uint8>           AxisID { X, Y, Z, W } TargetAxis;
     uint8                  _UnknownByte3;
     uint8                  _UnknownByte4;
-    float                  _UnknownFloat[3];
+    float                  _UnknownFloat32[3];
     vec3                   _UnknownVector;
     uint64                 UnknownINT64CS2 <name="UnknownINT64">;
     local string readStr;
     local hash readHash = murmur3_32(ObjectName.WString);
     
-    if (SourceAmount > 1) { SPrintf(readStr, "%s[%X] << %s[%X]...<%u more>", ObjectName.WString, readHash, CSourceList.CSource[0].SourceName.WString, CSourceList.CSource[0].readHash, SourceAmount - 1); }
-    else if (SourceAmount == 1) { SPrintf(readStr, "%s[%X] << %s[%X]", ObjectName.WString, readHash, CSourceList.CSource.SourceName.WString, CSourceList.CSource.readHash); }
-    else { SPrintf(readStr, "%s[%X]", ObjectName.WString, readHash); }
+    if (SourceAmount > 1) { SPrintf(readStr, "%s[%Xh] << %s[%Xh]...<%u more>", ObjectName.WString, readHash, CSourceList.CSource[0].SourceName.WString, CSourceList.CSource[0].readHash, SourceAmount - 1); }
+    else if (SourceAmount == 1) { SPrintf(readStr, "%s[%Xh] << %s[%Xh]", ObjectName.WString, readHash, CSourceList.CSource.SourceName.WString, CSourceList.CSource.readHash); }
+    else { SPrintf(readStr, "%s[%Xh]", ObjectName.WString, readHash); }
     //SPrintf(readStr, "%s - %s [%X,%X]", ConstraintName.WString, CSource.Source.WString, readHash, CSource.readHash);
 } 
 Constraint <read=readStr>;
@@ -342,9 +350,9 @@ typedef struct
                 hash SourceHash;
             }
             if (SourceAmount == 1) { SPrintf(readStr, "%X << %X", ObjectHash, SourceHash); }
-            else { SPrintf(readStr, "%X << %X...<%u more>", ObjectHash, SourceHash, SourceAmount - 1); }
+            else { SPrintf(readStr, "%Xh << %Xh...<%u more>", ObjectHash, SourceHash, SourceAmount - 1); }
         }
-        else { SPrintf(readStr, "%X", ObjectHash); }
+        else { SPrintf(readStr, "%Xh", ObjectHash); }
         
         FSeek(ReturnPos);
     }
@@ -391,7 +399,7 @@ typedef struct
     local uint returnPos = FTell();
     FSeek(offset);
     hash     UnknownHash;
-    float    UnknownFloat;
+    float    UnknownFloat32;
     uint64   UnknownUNIT64;
     FSeek(returnPos);
 } 
@@ -475,7 +483,7 @@ typedef struct
         ReferenceList References;
     }
 } 
-BODY0 <name="JCNS Section (Type 0)", fgcolor=0xFFBD9A, open=true>;
+BODY0 <name="JCNS Section (Type 0: Transformation)", fgcolor=0xFFBD9A, open=true>;
 
 typedef struct
 {
