@@ -69,10 +69,7 @@ typedef struct
     uint64 LODCount;
     uint32 LODTblOffset;
     FSeek(LODTblOffset);
-    for(_ = 0; _ < LODCount; ++_)
-    {
-        ShellFurInfo LOD;
-    }
+    ShellFurInfo LOD[LODCount] <optimize=false>;
 }
 BODY <name="ShellFur Body", read=LODCount, open=true>;
 
