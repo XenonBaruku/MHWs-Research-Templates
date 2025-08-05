@@ -3,18 +3,17 @@
 //
 //      File: MHWs_jcns.bt
 //   Authors: XenonValstrax
-//   Version: 0.41
+//   Version: 0.42
 //   Purpose: Parsing MHWilds Joint Constraints (*.jcns) files
 //  Category: MHWilds
 // File Mask: *.jcns.*
 //  ID Bytes: 
 //   History: 
 //------------------------------------------------
-// - STILL WIP -
+// - STILL WIP. Not sure everything is correct -
 //  TODO:
-//      1) Function:  Constraints editing
-//      2) Structure: Parsing the rest stuff
-//      3) Function: Full unicode support for Hash generate
+//      1) Editing (Maybe do this in Blender or something else)
+//      3) Full unicode support for Hash generate
 //      
 LittleEndian();
 
@@ -40,11 +39,30 @@ typedef struct
 } 
 vec4 <read=Str("[%.3f, %.3f, %.3f, %.3f]", axisX, axisY, axisZ, axisW)>;
 
+enum <uint8> TransformationID 
+{ 
+    Location, 
+    Rotation, 
+    Scale, 
+    BlendShapeUnk0, 
+    MatUnk0=7, 
+    MatUnk1, 
+    MatUnk2, 
+    MatUnk3, 
+    MatUnk4, 
+    Rotation_13=13, 
+    Rotation_14, 
+    Rotation_15, 
+    Rotation_16
+};
+
+enum <uint8> AxisID { X, Y, Z, W };
+
 // range
 typedef struct
 {
     float min <name="Minimum">;
-    float unk <name="_Unknown">;
+    float unk <name="_UnknownFloat">;
     float max <name="Maximum">;
 } 
 range <read=Str("[%.3f, %.3f]", min, max)>;
@@ -293,15 +311,15 @@ typedef struct
     uint64                 UnkUINT64CS0 <name="UnknownUINT64">;
     ConstraintSourceList   CSourceList <open=suppress>;
     WStringOffset          ObjectName <name="Object: Name">;
-    WStringOffset          MaterialProperty;
+    WStringOffset          MaterialProperty <comment="Material properties in mdf2, such as Blend_A, Blend_B, etc.">;
     hash                   ObjectHash <name="Object: Hash", comment="Read from file.">;
     hash                   PropertyHash <name="Property: Hash", comment="Material properties, etc.">;
-    uint8                  _UnknownByte0;
+    uint8                  _UnknownByte0 <comment="Game crashes for some value.">;
     uint8                  SourceAmount <hidden=true>;
-    enum <uint8>           TransformationID { Location, Rotation, Scale, BSUnk0, MatUnk0=7, MatUnk1, MatUnk2, MatUnk3, MatUnk4 } Transformation;
     uint8                  _UnknownByte1;
+    TransformationID       Transformation;
     uint8                  _UnknownByte2;
-    enum <uint8>           AxisID { X, Y, Z, W } TargetAxis;
+    AxisID                 TargetAxis;
     uint8                  _UnknownByte3;
     uint8                  _UnknownByte4;
     float                  _UnknownFloat32[3];
@@ -315,7 +333,7 @@ typedef struct
     else { SPrintf(readStr, "%s[%Xh]", ObjectName.WString, readHash); }
     //SPrintf(readStr, "%s - %s [%X,%X]", ConstraintName.WString, CSource.Source.WString, readHash, CSource.readHash);
 } 
-Constraint <read=readStr>;
+Constraint <read=readStr, write="">;
 
 // struct ConstraintList
 typedef struct 

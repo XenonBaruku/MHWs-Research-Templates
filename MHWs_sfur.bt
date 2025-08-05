@@ -1,0 +1,80 @@
+//------------------------------------------------
+//--- 010 Editor v15.0.1 Binary Template
+//
+//      File: MHWs_sfur.bt
+//   Authors: XenonValstrax
+//   Version: 0.1
+//   Purpose: Parsing MHWilds Shell Fur (*.sfur) files
+//  Category: MHWilds
+// File Mask: *.sfur.5
+//  ID Bytes: 53 46 55 52
+//   History: 
+//------------------------------------------------
+// - Still WIP. Not sure everything is correct -
+
+local uint64 _;
+enum <uint8> bool {False, True};
+
+typedef struct 
+{
+    uint64 WStrOffset;
+    if (WStrOffset != 0)
+    {
+        local uint64 ReturnPos = FTell();
+        FSeek(WStrOffset);
+        wstring WString <fgcolor=0xED00FA>; //<fgcolor=0xFFBB70>;
+        FSeek(ReturnPos);
+    }
+    else local wstring WString = "(empty)";
+} 
+WStringOffset <read=WString, write=WriteWStrStringOffset(Str(value), WStrOffset, WString)>;
+
+typedef struct
+{
+    uint64 offset;
+    local uint32 returnPos = FTell();
+    FSeek(offset);
+    uint32 ShellCount;
+    int32  ShellThinType;
+    int32  GroomingTexCoordType;
+    float  ShellHeight;
+    float  BendRate;
+    float  BendRootRate;
+    float  NormalTransformRate;
+    float  Stiffness;
+    float  StiffnessDistribution;
+    float  SpringCoefficient;
+    float  Dumping;
+    float  GravityForceScale;
+    float  DirectWindForceScale;
+    bool   ForceTwoSide;
+    bool   ForceAlphaTest;
+    uint8  UnknownUINT8;
+    uint8  UnknownUINT8;
+    WStringOffset Material;
+    WStringOffset FurFlowMap;
+    FSeek(returnPos);
+}
+ShellFurInfo <read=Material.WString, fgcolor=0xFAED00, comment="Most stuff are not tested.">;
+
+typedef struct
+{
+    byte   Signature[4];
+    uint32 Version;
+}
+HEADER <name="ShellFur Header", read=Str("VERSION %u", Version)>;
+
+typedef struct
+{
+    uint64 LODCount;
+    uint32 LODTblOffset;
+    FSeek(LODTblOffset);
+    for(_ = 0; _ < LODCount; ++_)
+    {
+        ShellFurInfo LOD;
+    }
+}
+BODY <name="ShellFur Body", read=LODCount, open=true>;
+
+HEADER header;
+BODY body;
