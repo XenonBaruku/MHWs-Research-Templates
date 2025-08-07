@@ -3,7 +3,7 @@
 //
 //      File: MHWs_jcns.bt
 //   Authors: XenonValstrax
-//   Version: 0.42
+//   Version: 0.5
 //   Purpose: Parsing MHWilds Joint Constraints (*.jcns) files
 //  Category: MHWilds
 // File Mask: *.jcns.*
@@ -11,11 +11,13 @@
 //   History: 
 //------------------------------------------------
 // - STILL WIP. Not sure everything is correct -
+//  Almost done...
 //  TODO:
 //      1) Editing (Maybe do this in Blender or something else)
-//      3) Full unicode support for Hash generate
+//      2) Full unicode support for Hash generate
 //      
 LittleEndian();
+SetUnoptimizedArraysCollapsible(0);
 
 local string mode;
 
@@ -44,12 +46,12 @@ enum <uint8> TransformationID
     Location, 
     Rotation, 
     Scale, 
-    BlendShapeUnk0, 
-    MatUnk0=7, 
-    MatUnk1, 
-    MatUnk2, 
-    MatUnk3, 
-    MatUnk4, 
+    BlendShapeUnk_3, 
+    MaterialUnk_7=7, 
+    MaterialUnk_8, 
+    MaterialUnk_9, 
+    MaterialUnk_10, 
+    MaterialUnk_11, 
     Rotation_13=13, 
     Rotation_14, 
     Rotation_15, 
@@ -303,28 +305,28 @@ typedef struct
     FSeek(ReturnPos);
     
 } 
-ConstraintSourceList <name="Constraint: Source List", read=Str("%u", parentof(this).SourceAmount)>;
+ConstraintSourceList <name="Constraint: Source List", read=Str("< %u Constraint Source(s) >", parentof(this).SourceAmount)>;
 
 // struct Constraint
 typedef struct
 {
-    uint64                 UnkUINT64CS0 <name="UnknownUINT64">;
+    QWORD                  UnknownQWORD;
     ConstraintSourceList   CSourceList <open=suppress>;
     WStringOffset          ObjectName <name="Object: Name">;
     WStringOffset          MaterialProperty <comment="Material properties in mdf2, such as Blend_A, Blend_B, etc.">;
     hash                   ObjectHash <name="Object: Hash", comment="Read from file.">;
     hash                   PropertyHash <name="Property: Hash", comment="Material properties, etc.">;
-    uint8                  _UnknownByte0 <comment="Game crashes for some value.">;
+    uint8                  _UnknownByte <comment="Game crashes for some value.">;
     uint8                  SourceAmount <hidden=true>;
-    uint8                  _UnknownByte1;
+    uint8                  _UnknownByte;
     TransformationID       Transformation;
-    uint8                  _UnknownByte2;
+    uint8                  _UnknownByte;
     AxisID                 TargetAxis;
-    uint8                  _UnknownByte3;
-    uint8                  _UnknownByte4;
+    uint8                  _UnknownByte;
+    uint8                  _UnknownByte;
     float                  _UnknownFloat32[3];
     vec3                   _UnknownVector;
-    uint64                 UnknownINT64CS2 <name="UnknownINT64">;
+    QWORD                  UnknownQWORD;
     local string readStr;
     local hash readHash = murmur3_32(ObjectName.WString);
     
@@ -393,22 +395,24 @@ ReferenceList <read=Str("  < %u Reference(s)... >  ", header.ReferenceAmount)>;
 typedef struct
 {
     
-    uint64   offset;
+    uint64 SourceOffset;
+    FSkip(4);
+    uint32 SourceAmount;
+    FSkip(-8);
     local uint returnPos = FTell();
-    FSeek(offset);
-    uint32   ID;
-    vec3     UnknownAxis;
+    FSeek(SourceOffset);
+    struct { uint  SourceHashIndex; float Weight; } Source[SourceAmount] <read=Str("Index: %u Weight: %f", SourceHashIndex, Weight), optimize=false>;
     FSeek(returnPos);
 } 
-Unk2T <read=ID>;
+ConstraintSimpleSrc;
 
 typedef struct
 {
-    Unk2T      UnknownObject;
-    hash       UnknownHash;
-    uint32     UnknownUNIT32;
+    ConstraintSimpleSrc  SourceInfo;
+    hash                 ObjectHash;
+    FSkip(4);
 } 
-Unk2C <read=Str("%X[%u]", UnknownHash, UnknownObject.ID)>;
+ConstraintSimple <read=Str("%X <%u Source(s)>", ObjectHash, SourceInfo.SourceAmount)>;
 
 typedef struct
 {
@@ -416,22 +420,22 @@ typedef struct
     uint64   offset;
     local uint returnPos = FTell();
     FSeek(offset);
-    hash     UnknownHash;
+    hash     SourceHash;
     float    UnknownFloat32;
-    uint64   UnknownUNIT64;
+    QWORD    UnknownQWORD;
     FSeek(returnPos);
 } 
-Unk3T <read=Str("%X", UnknownHash)>;
+ConstraintAimSrc <read=Str("%Xh", SourceHash)>;
 
 typedef struct
 {
-    Unk3T      UnknownObject;
-    hash       UnknownHash;
-    uint32     UnknownUNIT32;
-    vec3       UnknownAxis[4];
-    uint64     UnknownUINT64[2];
+    ConstraintAimSrc   SourceInfo;
+    hash               AimBoneHash;
+    DWORD              UnknownDWORD;
+    float              UnknownFloat[12];
+    uint8              UnknownBytes[16];
 } 
-Unk3C <read=Str("%X - %X", UnknownHash, UnknownObject.UnknownHash)>;
+ConstraintAim <read=Str("%Xh - %Xh", AimBoneHash, SourceInfo.SourceHash)>;
 
 
 
@@ -443,30 +447,30 @@ typedef struct
     {
         uint   version;
         byte   signature[4];
-        uint64 _unkINT1;
-        uint64 _unkOffset1;
-        uint64 _unkINT1_1 <comment="ID?">;
+        QWORD _unknownQWORD;
+        uint64 EntryOffset;
+        QWORD _unknownQWORD;
         uint64 TableOffset;
-        uint64 _unkINT1_2 <comment="ID?">;
-        FSeek(_unkOffset1);
-        uint64 _unkINT2;
-        uint64 _unkINT2_1;
+        QWORD _unknownQWORD;
+        FSeek(EntryOffset);
+        QWORD _unknownQWORD;
+        QWORD _unknownQWORD;
         FSeek(TableOffset);
         uint64 RecordOffset;
-        uint64 _unkINT2_2;
-    } Tags <comment="Usually unnecessary to modify.">;
+        QWORD _unknownQWORD;
+    } Tags <comment="Usually the same for most files.">;
     FSeek(Tags.RecordOffset);
     uint64 EndOfHeader;
     uint64 BodyOffset;
     uint64 EndOfBody;
-    uint64 UnknownINT64;
-    uint64 UnknownINT64;
+    QWORD _unknownQWORD;
+    QWORD _unknownQWORD;
     uint64 secondSectionOffset;
     uint64 UniqueHashTableOffset;
     uint64 thirdSectionOffset;
-    uint64 UnknownINT64;
-    uint64 UnknownINT64;
-    uint64 SectionOffset;
+    QWORD _unknownQWORD;
+    QWORD _unknownQWORD;
+    uint64 SectionTypeOffset;
     uint64 ReferenceTableOffset;
     uint16 _UnknownUINT16;
     uint16 ConstraintAmount;
@@ -474,16 +478,14 @@ typedef struct
     uint16 _UnknownShorts[3] <hidden=true>;
     uint16 UniqueTable2Amount;
     uint16 UniqueHashAmount;
-    uint16 UniqueTable3Amount;
+    uint16 AimConstraintAmount;
     uint16 _UnknownUINT16;
     uint8  SectionAmount;
     local uint64 returnPos = FTell();
-    FSeek(SectionOffset);
-    local uint8 _;
-    for (_; _ < SectionAmount; ++_) uint Section;
+    FSeek(SectionTypeOffset);
+    uint SectionType[SectionAmount];
     FSeek(returnPos);
     byte UnknownBytes[11] <hidden=true>;
-    local string readStr;
 } 
 HEADER <name="JCNS Header", read=Str("VERSION %u", Tags.version)>;
 
@@ -505,55 +507,36 @@ BODY0 <name="JCNS Section (Type 0: Transformation)", fgcolor=0xFFBD9A, open=true
 
 typedef struct
 {
-    local uint _;
-    for (_; _ < header.UniqueTable2Amount; ++_) Unk2C Cns2 <name="UnknownConstraint2">;
+    struct 
+    {
+        ConstraintSimple SimpleConstraint[header.UniqueTable2Amount] <fgcolor=0xFF7CEF, optimize=false>;
+    } ConstraintInfo;
+    
+    if (header.UniqueHashAmount != 0)
+    {
+        FSeek(header.UniqueHashTableOffset);
+        hash SourceHashes[header.UniqueHashAmount] <fgcolor=0xFF7CEF>;
+    }
 }
-BODY2 <name="JCNS Section (Type 2)", fgcolor=0xFF7CEF, open=true>;
+BODY2 <name="JCNS Section (Type 2: Simple Constraints)", open=true>;
 
 typedef struct
 {
-    local uint _;
-    for (_; _ < header.UniqueHashAmount; ++_)   hash UnknownHash;
+    ConstraintAim AimConstraint[header.AimConstraintAmount] <optimize=false>;
 }
-HASHTABLE <name="JCNS Unknown Hash Table", fgcolor=0xFF7CEF>;
-
-typedef struct
-{
-    local uint _;
-    for (_; _ < header.UniqueTable3Amount; ++_) Unk3C Cns3 <name="UnknownConstraint3">;
-}
-BODY3 <name="JCNS Section (Type 3)", fgcolor=0xFF7CEF, open=true>;
+BODY3 <name="JCNS Section (Type 3: Aim)", fgcolor=0xFF7CEF, open=true>;
 
 
 
 //—————————————————/* - FILES - */—————————————————//
 HEADER header;
 FSeek(header.EndOfHeader);
+
+// Maybe do this for other RE games... If time allows
 switch (header.Tags.version)
 {
     case 29: // MHWs
         mode = "MHWs";
-        /*local uint _;
-        for (_; _ < header.SectionAmount; ++_)
-        {
-            switch (header.Section[_])
-            {
-                case 0:
-                    if (header.ConstraintAmount > 0)
-                    {
-                        FSeek(header.BodyOffset);
-                        BODY0 body0;
-                        FSeek(header.EndOfBody);
-                    } 
-                    break;
-                case 3: 
-                    if (header.UniqueTableAmount != 0)
-                    {
-                        BODY3 body3;
-                    } 
-                    break;
-            }
-        }*/
         struct
         {
             if (header.ConstraintAmount > 0)
@@ -567,12 +550,7 @@ switch (header.Tags.version)
                 FSeek(header.secondSectionOffset);
                 BODY2 body2;
             }
-            if (header.UniqueHashAmount != 0)
-            {
-                FSeek(header.UniqueHashTableOffset);
-                HASHTABLE hashtbl;
-            }
-            if (header.UniqueTable3Amount != 0)
+            if (header.AimConstraintAmount != 0)
             {
                 FSeek(header.thirdSectionOffset);
                 BODY3 body3;
