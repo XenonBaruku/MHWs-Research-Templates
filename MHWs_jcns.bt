@@ -465,9 +465,9 @@ typedef struct
     uint64 EndOfBody;
     QWORD _unknownQWORD;
     QWORD _unknownQWORD;
-    uint64 secondSectionOffset;
-    uint64 UniqueHashTableOffset;
-    uint64 thirdSectionOffset;
+    uint64 SimpleConstraintTableOffset;
+    uint64 SimpleConstraintSourceTableOffset;
+    uint64 AimConstraintTableOffset;
     QWORD _unknownQWORD;
     QWORD _unknownQWORD;
     uint64 SectionTypeOffset;
@@ -476,8 +476,8 @@ typedef struct
     uint16 ConstraintAmount;
     uint16 ReferenceAmount;
     uint16 _UnknownShorts[3] <hidden=true>;
-    uint16 UniqueTable2Amount;
-    uint16 UniqueHashAmount;
+    uint16 SimpleConstraintAmount;
+    uint16 SimpleConstraintSourceAmount;
     uint16 AimConstraintAmount;
     uint16 _UnknownUINT16;
     uint8  SectionAmount;
@@ -509,13 +509,13 @@ typedef struct
 {
     struct 
     {
-        ConstraintSimple SimpleConstraint[header.UniqueTable2Amount] <fgcolor=0xFF7CEF, optimize=false>;
+        ConstraintSimple SimpleConstraint[header.SimpleConstraintAmount] <fgcolor=0xFF7CEF, optimize=false>;
     } ConstraintInfo;
     
-    if (header.UniqueHashAmount != 0)
+    if (header.SimpleConstraintSourceAmount != 0)
     {
-        FSeek(header.UniqueHashTableOffset);
-        hash SourceHashes[header.UniqueHashAmount] <fgcolor=0xFF7CEF>;
+        FSeek(header.SimpleConstraintSourceTableOffset);
+        hash SourceHashes[header.SimpleConstraintSourceAmount] <fgcolor=0xFF7CEF>;
     }
 }
 BODY2 <name="JCNS Section (Type 2: Simple Constraints)", open=true>;
@@ -545,14 +545,14 @@ switch (header.Tags.version)
                 BODY0 body0;
                 FSeek(header.EndOfBody);
             }
-            if (header.UniqueTable2Amount != 0)
+            if (header.SimpleConstraintAmount != 0)
             {
-                FSeek(header.secondSectionOffset);
+                FSeek(header.SimpleConstraintTableOffset);
                 BODY2 body2;
             }
             if (header.AimConstraintAmount != 0)
             {
-                FSeek(header.thirdSectionOffset);
+                FSeek(header.AimConstraintTableOffset);
                 BODY3 body3;
             }
         } MainBody <name="JCNS Body", open=true>;
