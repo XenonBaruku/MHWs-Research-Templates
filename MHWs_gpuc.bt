@@ -1,0 +1,392 @@
+//------------------------------------------------
+//--- 010 Editor v15.0.1 Binary Template
+//
+//      File: MHWs_gpuc.bt
+//   Authors: XenonValstax
+//   Version: 0.1
+//   Purpose: Parsing MHWs GPU Cloth (*.gpuc) files
+//  Category: MHWs
+// File Mask: *.gpuc.241111720,*.gpuc.241111734,*.gpuc.241111744
+//  ID Bytes: 47 43 4C 4F
+//   History: 
+//------------------------------------------------
+// !! NOT COMPLETED !!
+// - STILL WIP. Not sure everything is correct -
+//
+// Credit: @alphaZomega for RE8_GPUC.bt
+
+LittleEndian();
+local uint64 _ <hidden=true>;
+
+typedef uint16 NormalizedInt16 <read=Str("%f", (this / 65535.0))>;
+
+typedef uint8 NormalizedInt8 <read=Str("%f", (this / 255.0))>;
+
+typedef struct
+{
+    float X;
+    float Y;
+    float Z;
+}
+vec3_32 <read=Str("[%f, %f, %f]", X, Y, Z)>;
+
+typedef struct
+{
+    NormalizedInt8 X;
+    NormalizedInt8 Y;
+    NormalizedInt8 Z;
+    NormalizedInt8 W;
+}
+vec4_8n <read=Str("[%f, %f, %f, %f]", X / 255.0, Y / 255.0, Z / 255.0, W / 255.0)>;
+
+// WStringOffset
+typedef struct 
+{
+    uint64 WStrOffset;
+    if (WStrOffset != 0)
+    {
+        local uint64 ReturnPos = FTell();
+        FSeek(WStrOffset);
+        wstring WString <bgcolor=0x666666, fgcolor=0xFF00FA>; //<fgcolor=0xFFBB70>;
+        FSeek(ReturnPos);
+    }
+    else local wstring WString = "(empty)";
+} 
+WStringOffset <read=WString, write=WriteWStrStringOffset(Str(value), WStrOffset, WString)>;
+
+typedef uint32 hash <format=hex>;//, write="">;
+
+
+
+typedef struct 
+{
+    DWORD UnknownDWORD[12];
+} 
+structUnkControlPoints <bgcolor=cDkPurple, fgcolor=cLtPurple>;
+
+typedef struct 
+{
+    //byte   VertexBytes[108];
+    float    Weight;
+    float    Radius;
+    float    InverseMass;
+    float    MaxDistanceX;
+    float    MaxDistanceY;
+    float    MaxDistanceZ;
+    //float  BackstopRadius;
+    DWORD    UnknownDWORD1[6];
+    uint8    CollisionPlaneBits[4];
+    uint8    CollisionSphereBits[4];
+    //uint8  CollisionCapsuleBits[4];
+    int32    PartID;
+    int32    PartID;
+    int8     ControlPointIndices[4];
+    int16    InitialDistances[2];
+    vec3_32  Position;
+    vec4_8n  Normal;
+    DWORD    UnknownDWORD2[5];
+} 
+structControlPoint <bgcolor=0x00005A, fgcolor=0xAAAAFF>;
+
+typedef struct 
+{
+    uint16 IndexA;
+    uint16 IndexB;
+    float RestLength;
+    NormalizedInt16 Stiffness;
+    NormalizedInt16 StiffnessMultiplier;
+    NormalizedInt16 StretchLimit;
+    NormalizedInt16 CompressionLimit;
+} 
+structDistanceLink <bgcolor=0x5A0053, fgcolor=0xFF00C8>;
+
+typedef struct 
+{
+    uint16 IndexA;
+    uint16 IndexB;
+    uint16 IndexC;
+    FSkip(2);
+} 
+structTriangle_241111720 <bgcolor=0x5A0000, fgcolor=0xFFAAAA, optimize=true>;
+
+typedef struct 
+{
+    uint16 IndexA;
+    uint16 IndexB;
+    uint16 IndexC;
+    FSkip(2);
+    DWORD UnknownDWORD[3];
+} 
+structTriangle_241111734 <bgcolor=0x5A0000, fgcolor=0xFFAAAA, optimize=true>;
+
+typedef struct 
+{
+    uint16 IndexA;
+    uint16 IndexB;
+    uint16 UnknownUINT16;
+    uint16 UnknownUINT16;
+} 
+structCollisionEdge <bgcolor=0x005A00, fgcolor=0x00C800>;
+
+typedef struct 
+{
+    WStringOffset NameStr;
+    hash          NameHash;
+    uint32        PaddingA;
+    uint32        Guid[4];
+    float         Unknownfloat32[4];
+    DWORD         UnknownDWORD[4];
+} 
+structPartInfo <bgcolor=0x000000, fgcolor=0xC8C8C8, read=NameStr.WString, optimize=false>;
+
+typedef struct 
+{
+    uint32 ControlPoints;
+    uint32 Triangles;
+    uint32 DistanceLinks;
+    uint32 CollisionEdges;
+    uint32 DistanceLinkGroups;
+    uint32 CollisionEdgeGroups;
+    uint32 Bones;
+    uint32 UnknownUINT32;
+    uint32 UnknownUINT32;
+    uint32 StartControlPoints;
+    uint32 StartTriangle;
+    uint32 StartDistanceLink;
+    uint32 StartCollisionEdge;
+    uint32 StartDistanceLinkGroup;
+    uint32 StartCollisionEdgeGroup;
+    uint32 StartBone;
+    uint32 UnknownUINT32;
+    uint32 UnknownUINT32;
+    uint32 UnknownUINT32;
+    uint32 UnknownUINT32;
+} 
+structComponentList1 <bgcolor=cDkAqua, fgcolor=cAqua>;
+
+typedef struct 
+{
+    DWORD  UnknownDWORD;
+    uint32 ControlPoints;
+    uint32 Triangles;
+    uint32 DistanceLinks;
+    uint32 CollisionEdges;
+    uint32 DistanceLinkGroups;
+    uint32 CollisionEdgeGroups;
+    uint32 Bones;
+    uint32 UnknownUINT32;
+    uint32 UnknownUINT32;
+    uint32 StartControlPoints;
+    uint32 StartTriangle;
+    uint32 StartDistanceLink;
+    uint32 StartCollisionEdge;
+    uint32 StartDistanceLinkGroup;
+    uint32 StartCollisionEdgeGroup;
+    uint32 StartBone;
+    uint32 UnknownUINT32;
+    uint32 UnknownUINT32;
+    uint32 UnknownUINT32;
+    uint32 UnknownUINT32;
+    uint32 UnknownUINT32;
+    uint32 UnknownUINT32;
+    uint32 UnknownUINT32;
+} 
+structComponentList2 <bgcolor=cDkYellow, fgcolor=cLtYellow>;
+
+typedef struct 
+{
+    DWORD  UnknownDWORD;
+    uint32 ControlPoints;
+    DWORD  UnknownDWORD;
+    uint32 Triangles;
+    DWORD  UnknownDWORD;
+    uint32 DistanceLinks;
+    DWORD  UnknownDWORD;
+    uint32 CollisionEdges;
+    DWORD  UnknownDWORD;
+    DWORD  UnknownDWORD;
+    DWORD  UnknownDWORD;
+    DWORD  UnknownDWORD;
+    DWORD  UnknownDWORD;
+    DWORD  UnknownDWORD;
+    DWORD  UnknownDWORD;
+    uint32 Bones;
+    DWORD  UnknownDWORD;
+    DWORD  UnknownDWORD;
+    DWORD  UnknownDWORD;
+    uint32 UnknownUINT32;
+} 
+structComponentList3 <bgcolor=cDkGreen, fgcolor=cLtGreen>;
+
+typedef struct 
+{
+    float UnknownFloat[12];
+} 
+structUnk02 <bgcolor=0xAAAAAA, fgcolor=0xC8C8C8>;
+
+typedef struct
+{
+    int32 VertexIndex;
+    float Weight;
+    int32 VertexIndex;
+    float Weight;
+    int32 VertexIndex;
+    float Weight;
+    int32 VertexIndex;
+    float Weight;
+    int32 VertexIndex;
+    float Weight;
+    int32 VertexIndex;
+    float Weight;
+    int32 VertexIndex;
+    float Weight;
+    int32 VertexIndex;
+    float Weight;
+}
+structBoneWeightInfo;
+
+typedef struct
+{
+    float MassScale;
+    float ShearStiffness;
+    float BendStiffness;
+    float UserColor[3];
+}
+structDebugControlPoint;
+
+
+
+struct BODY
+{
+    FSeek(header.UnknownControlPointListOffset);
+    structUnkControlPoints UnknownControlPoints[header.ControlPointAmount];
+    FSeek(header.PartInfoListOffset);
+    structPartInfo PartInfos[header.PartInfoAmount];
+    FSeek(header.PartsListOffset);
+    structComponentList1 ComponentLists1[header.ComponentList1Amount];
+    FSeek(header.ComponentList2Offset);
+    structComponentList2 ComponentLists2[header.ComponentList2Amount];
+    FSeek(header.ComponentList3Offset);
+    structComponentList3 ComponentLists3[header.ComponentList3Amount];
+    FSeek(header.ControlPointListOffset);
+    structControlPoint ControlPoints[header.ControlPointAmount];
+    FSeek(header.DistanceLinkListOffset);
+    structDistanceLink DistanceLinks[header.DistanceLinkAmount];
+    FSeek(header.TriangleListOffset);
+    if (FileNameGetExtension(GetFileName()) == ".241111720")
+    {
+        structTriangle_241111720 Triangles[header.TriangleAmount];
+    }
+    else if (FileNameGetExtension(GetFileName()) == ".241111734" || FileNameGetExtension(GetFileName()) == ".241111744")
+    {
+        structTriangle_241111734 Triangles[header.TriangleAmount];
+    }
+    FSeek(header.CollisionEdgeListOffset);
+    structCollisionEdge CollisionEdges[header.CollisionEdgeAmount];
+    FSeek(header.DistanceLinkGroupOffset);
+    uint32 DistanceLinkGroupCounts[header.DistanceLinkGroupAmount] <bgcolor=0x4C0040>;
+    FSeek(header.CollisionEdgeGroupOffset);
+    uint32 CollisionEdgeGroupCounts[header.CollisionEdgeGroupAmount] <bgcolor=0x004C00>;
+    FSeek(header.Unk02Offset);
+    structUnk02 Unknown02[header.Unk02Amount];
+    FSeek(header.BoneOffset);
+    uint32 Bones[header.BoneAmount] <bgcolor=0xCDA800, fgcolor=0xDCDCDC>;
+    FSeek(header.BoneWeightInfoOffset);
+    structBoneWeightInfo BoneWeightInfo[header.BoneAmount] <bgcolor=0x005AED, fgcolor=0x00C8FF>;
+    typedef struct { wstring WideString; } WSTR <read=WideString, optimize=false>;
+    FSeek(header.StringListOffsetComponentList1);
+    WSTR StringList1[header.ComponentList1Amount];
+    FSeek(header.StringListOffsetComponentList2);
+    WSTR StringList2[header.ComponentList2Amount];
+    FSeek(header.DebugControlPointsOffset);
+    structDebugControlPoint DebugControlPoints[header.ControlPointAmount];
+    FSeek(header.DebugDistanceLinksOffset);
+    uint32 DebugDistanceLinks[header.DistanceLinkAmount];
+};
+
+struct HEADER
+{
+    local uint32 ReturnPos = 0;
+    char Signature[4];
+    DWORD  UnknownDWORD;
+    uint32 UnknownControlPointListOffset;
+    uint32 ControlPointAmount;
+    uint32 TriangleAmount;
+    uint32 DistanceLinkAmount;
+    uint32 CollisionEdgeAmount;
+    uint32 DistanceLinkGroupAmount;
+    uint32 CollisionEdgeGroupAmount;
+    uint32 PartInfoAmount;
+    uint32 ComponentList1Amount;
+    uint32 ComponentList3Amount;
+    uint32 ComponentList2Amount;
+    uint32 BoneAmount;
+    uint32 Offset11Amount;
+    DWORD  UnknownDWORD_0[10];
+    uint32 Unk02Amount;
+    DWORD  UnknownDWORD_1[4];
+    float  Stickiness;
+    uint32 UnknownUINT32;
+    uint8  UnknownUINT8[4];
+    DWORD  UnknownDWORD_2[3];
+    float  UnknownFloat_0[8];
+    uint64 ControlPointListOffset <format=hex>;
+    uint64 TriangleListOffset <format=hex>;
+    uint64 DistanceLinkListOffset <format=hex>;
+    uint64 CollisionEdgeListOffset <format=hex>;
+    uint64 DistanceLinkGroupOffset <format=hex>;
+    uint64 CollisionEdgeGroupOffset <format=hex>;
+    uint64 PartInfoListOffset <format=hex>;
+    uint64 PartsListOffset <format=hex>;
+    uint64 UnknownOffset09 <format=hex>;
+    ReturnPos = FTell();
+    FSeek(UnknownOffset09);
+    uint16 div_9[8] <bgcolor=cRed>;
+    FSeek(ReturnPos);
+    uint64 UnknownUINT32;
+    uint64 ComponentList2Offset <format=hex>;
+    uint64 UnknownOffset11 <format=hex>;
+    ReturnPos = FTell();
+    FSeek(UnknownOffset11);
+    uint32 div_11[4] <bgcolor=cRed>;
+    FSeek(ReturnPos);
+    uint64 ComponentList3Offset <format=hex>;
+    uint64 UnknownUINT32;
+    uint64 Unk01Offset <format=hex>;
+    uint64 Unk02Offset <format=hex>;
+    uint64 UnknownUINT32;
+    uint64 UnknownOffset15 <format=hex>;
+    ReturnPos = FTell();
+    FSeek(UnknownOffset15);
+    uint32 div_15[4] <bgcolor=cRed>;
+    FSeek(ReturnPos);
+    uint64 UnknownOffset16 <format=hex>;
+    ReturnPos = FTell();
+    FSeek(UnknownOffset16);
+    uint32 div_16[4] <bgcolor=cRed>;
+    FSeek(ReturnPos);
+    uint64 StringListOffsetComponentList1 <format=hex>;
+    uint64 StringListOffsetComponentList2 <format=hex>;
+    uint64 BoneOffset <format=hex>;
+    uint64 BoneWeightInfoOffset <format=hex>;
+    uint64 UnknownOffset21 <format=hex>;
+    ReturnPos = FTell();
+    FSeek(UnknownOffset21);
+    float div_21[4] <bgcolor=cRed>;
+    FSeek(ReturnPos);
+    uint64 UnknownOffset22 <format=hex>;
+    ReturnPos = FTell();
+    FSeek(UnknownOffset22);
+    float div_22[4] <bgcolor=cRed>;
+    FSeek(ReturnPos);
+    uint64 UnknownOffset23 <format=hex>;
+    ReturnPos = FTell();
+    FSeek(UnknownOffset23);
+    float div_23[4] <bgcolor=cRed>;
+    FSeek(ReturnPos);
+    uint64 DebugControlPointsOffset <format=hex>;
+    uint64 DebugDistanceLinksOffset <format=hex>;
+};
+
+HEADER header <name="GPUC Header">;
+BODY   body   <name="GPUC Body", open=true>;
