@@ -3,7 +3,7 @@
 //
 //      File: RE_Engine_jcns.bt
 //   Authors: XenonValstrax
-//   Version: 0.6
+//   Version: 0.61
 //   Purpose: Parsing Joint Constraints (*.jcns) files from Most RE Games
 //  Category: RE Engine
 // File Mask: *.jcns.*
@@ -14,9 +14,11 @@
 //  Almost done...
 //  TODO:
 //      1) Editing (Maybe do this in Blender or something else)
-//      2) Full unicode support for Hash generate
+//      2) Full unicode support for hash generate
 //      
-// < SUPPORTED VERSION >
+// < SUPPORTED VERSIONS / GAMES >
+//     *.11 - Resident Evil 2 Remake
+//     *.12 - Resident Evil 3 Remake
 //     *.16 - Resident Evil 8
 //     *.21 - Monster Hunter Rise Sunbreak
 //     *.22 - Resident Evil 4 Remake
@@ -53,6 +55,7 @@ enum <uint8> TransformationID
     Scale, 
     BlendShape,
     UnkCtrl_4,
+    UnkTopBank_5,
     Material_Scalar=7, 
     Material_4D, 
     Material_3D, 
@@ -65,15 +68,15 @@ enum <uint8> TransformationID
     UnkRotation_16
 };
 
-//enum <uint8> AxisID { X, Y, Z, W, UnknownAxis_4, UnknownAxis_5, UnknownAxis_6, UnknownAxis_7, UnknownAxis_8 };
-enum <uint8> AxisID { X, Y, Z, W };
+enum <uint8> AxisID { X, Y, Z, W, UnknownAxis_4, UnknownAxis_5, UnknownAxis_6, UnknownAxis_7, UnknownAxis_8 };
+//enum <uint8> AxisID { X, Y, Z, W };
 
 
 // range
 typedef struct
 {
     float min <name="Minimum">;
-    uint8 _UnknownUINT8[4];
+    float _UnknownFloat32;
     float max <name="Maximum">;
 } 
 range <read=Str("[%.3f, %.3f]", min, max), write=RangeFWrite>;
@@ -283,17 +286,17 @@ UnknownSourceExt2;
 // struct ConstraintSource
 typedef struct
 {
-    uint64          ExtOffset <name="UnknownExtraInfoOffset">;
-    WStringOffset   SourceName <name="Source: Name">;
-    hash            SourceHash <name="Source: Hash", comment="Hash here is read from file directly.">;
-    uint            UnknownExt1Amount <name="UnknownExtraInfoAmount">;
-    byte            _UnknownByte <comment="Transformation?">;
-    byte            _UnknownByte;
-    AxisID          SourceAxis;
-    byte            UnknownBytes[5];
-    range           MapFromRange <name="MapFrom: Range">;
-    range           MapToRange <name="MapTo: Range">;
-    vec4            _UnknownVector;
+    uint64           ExtOffset <name="UnknownExtraInfoOffset", fgcolor=cLtGreen>; 
+    WStringOffset    SourceName <name="Source: Name">;
+    hash             SourceHash <name="Source: Hash", comment="Hash here is read from file directly.">;
+    uint             UnknownExt1Amount <name="UnknownExtraInfoAmount", fgcolor=cLtGreen>;
+    TransformationID Transformation;
+    byte             _UnknownByte;
+    AxisID           SourceAxis;
+    byte             UnknownBytes[5];
+    range            MapFromRange <name="MapFrom: Range">;
+    range            MapToRange <name="MapTo: Range">;
+    vec4             _UnknownVector;
     
     local uint32 returnPos = FTell();
     FSeek(ExtOffset);
@@ -303,7 +306,7 @@ typedef struct
         else { break; }
     }
     if (UnknownExt1Amount >0) // Prevent warnings
-    { UnknownSourceExt1 SrcExt1[UnknownExt1Amount] <name="UnknwonExtraInfo1", optimize=false>; }
+    { UnknownSourceExt1 SrcExt1[UnknownExt1Amount] <name="UnknwonExtraInfo1", fgcolor=cLtGreen, optimize=false>; }
     //for (_ = 0; _ < UnknownExt2Amount; ++_)
     //{
     //    UnknownSourceExt2 SrcExt2;
@@ -314,7 +317,26 @@ typedef struct
     local hash readHash = murmur3_32(SourceName.WString);
     SPrintf(readStr, "%s - %Xh", SourceName.WString, readHash);
 } 
-ConstraintSource <read=readStr>;
+ConstraintSource_v2 <read=readStr>;
+
+typedef struct
+{
+    WStringOffset    SourceName <name="Source: Name">;
+    hash             SourceHash <name="Source: Hash", comment="Hash here is read from file directly.">;
+    range            MapFromRange <name="MapFrom: Range">;
+    range            MapToRange <name="MapTo: Range">;
+    byte             _UnknownByte;
+    TransformationID Transformation;
+    AxisID           SourceAxis;
+    byte             UnknownBytes[5];
+    vec4             _UnknownVector;
+    DWORD            _UnknownDWORD;
+   
+    local string readStr;
+    local hash readHash = murmur3_32(SourceName.WString);
+    SPrintf(readStr, "%s - %Xh", SourceName.WString, readHash);
+} 
+ConstraintSource_v1 <read=readStr>;
 
 // struct ConstraintSourceList
 typedef struct
@@ -324,11 +346,22 @@ typedef struct
     
     uint64  OffsetSourceList;
     local uint ReturnPos = FTell();
-    FSkip(25);
-    uint8   SourceAmount;
-    FSeek(OffsetSourceList);
-    if (SourceAmount > 0) // Prevent warnings
-    { ConstraintSource CSource[SourceAmount] <name="Constraint: Source", optimize=false>; }
+    if (Version > 12) 
+    { 
+        FSkip(25); 
+        uint8   SourceAmount;
+        FSeek(OffsetSourceList);
+        if (SourceAmount > 0) // Prevent warnings
+        { ConstraintSource_v2 CSource[SourceAmount] <name="Constraint: Source", optimize=false>; }
+    }
+    else 
+    { 
+        FSkip(17); 
+        uint8   SourceAmount;
+        FSeek(OffsetSourceList);
+        if (SourceAmount > 0) // Prevent warnings
+        { ConstraintSource_v1 CSource[SourceAmount] <name="Constraint: Source", optimize=false>; }
+    }
     FSeek(ReturnPos);
     
 } 
@@ -338,37 +371,38 @@ typedef struct
 {
     uint64  Offset;
     local uint64 ReturnPos = FTell();
-    FSkip(32);
+    if (Version > 12) { FSkip(32); }
+    else { FSkip(24); }
     uint8   Amount;
     if (Amount > 0)
         {
         FSeek(Offset);
-        DWORD    _UnknownDWORD;
         struct 
         {
             float    _UnknwonFloat32;
-            uint8    _UnknownUINT8;
-            //AxisID   Axis;
-            uint8    _UnknownUINT8 <comment="Axis?">;
-            uint8    _UnknownUINT8;
-            uint8    _UnknownUINT8;
             float    _UnknwonFloat32;
-        } //StandaloneConstraintInfo[Amount] <read=Str("%s : (%f, %f)", EnumToString(Axis), _UnknwonFloat32[0], _UnknwonFloat32[1]), optimize=false>;
-        StandaloneConstraintInfo[Amount] <read=Str("%u : (%f, %f)", _UnknownUINT8[1], _UnknwonFloat32[0], _UnknwonFloat32[1]), optimize=false>;
+            uint8    _UnknownUINT8 <comment="Usually 3">;
+            AxisID   Axis  <comment="Not sure">;
+            //uint8    _UnknownUINT8 <comment="Axis?">;
+            uint8    _UnknownUINT8;
+            uint8    _UnknownUINT8;
+        } ExtraInfo[Amount] <read=Str("%s : (%f, %f)", EnumToString(Axis), _UnknwonFloat32[0], _UnknwonFloat32[1]), optimize=false>;
+        //ExtraInfo[Amount] <read=Str("%u : (%f, %f)", _UnknownUINT8[1], _UnknwonFloat32[0], _UnknwonFloat32[1]), optimize=false>;
     }
     FSeek(ReturnPos);
 }
-StandaloneCSInfo <name="StandaloneConstraint: Info", read=Str("< %u Extra Constraint Info(s) >", Amount), fgcolor=cLtYellow>;
+ExtraConstraintInfo <name="Constraint: Extra Info", read=Str("< %u Extra Constraint Info(s) >", Amount), fgcolor=cLtYellow>;
 
 // struct Constraint
 typedef struct
 {
-    StandaloneCSInfo       StandaloneCSInfoList;
+    ExtraConstraintInfo    ExtraCnsInfo;
     ConstraintSourceList   CSourceList <open=suppress>;
     WStringOffset          ObjectName <name="Object: Name", comment="Name of bone, material, etc.">;
-    WStringOffset          MaterialProperty <comment="Material properties in mdf2, such as Blend_A, Blend_B, etc.">;
+    if (Version > 12)
+    { WStringOffset        MaterialProperty <comment="Material properties in mdf2, such as Blend_A, Blend_B, etc.">; }
     hash                   ObjectHash <name="Object: Hash", comment="Hash here is read from file directly.">;
-    hash                   PropertyHash <name="Property: Hash", comment="Hash here is read from file directly.">;
+    hash                   PropertyHash <name="Property: Hash", comment="Hash here is read from file directly.">; 
     uint8                  StandaloneConstraintInfoAmount <fgcolor=cLtYellow, bgcolor=cBlack>;
     uint8                  SourceAmount   <fgcolor=cLtRed, bgcolor=cBlack>;
     uint8                  _UnknownByte   <bgcolor=cBlack, comment="Mix?">;
@@ -497,7 +531,8 @@ typedef struct
     float          UnknownFloat32;
     float          UnknownFloat32;
     float          UnknownFloat32;
-    DWORD          UnknwonDWORD[4];
+    if (Version > 12)
+    { DWORD          UnknwonDWORD[4]; }
     hash           NameHash;
     hash           Bone1Hash;
     hash           Bone2Hash;
@@ -516,37 +551,39 @@ typedef struct
     {
         byte   signature[4];
         QWORD _unknownQWORD;
-        uint64 EntryOffset;
+        uint64 InfoOffset;
         QWORD _unknownQWORD;
-        uint64 TableOffset;
+        uint64 FileEntry;
         QWORD _unknownQWORD;
-        FSeek(EntryOffset);
+        FSeek(InfoOffset);
         QWORD _unknownQWORD;
         QWORD _unknownQWORD;
-        FSeek(TableOffset);
-        uint64 RecordOffset;
+        FSeek(FileEntry);
+        uint64 DataOffset;
         QWORD _unknownQWORD;
     } Tags <comment="Usually the same in most files from diffent RE games.">;
-    FSeek(Tags.RecordOffset);
+    FSeek(Tags.DataOffset);
     switch (Version)
     {
     case 29: // MHWs
-        uint64 EndOfHeader;
-        uint64 BodyOffset;
+        uint64 ExtraJointMapOffset;
+        uint64 ConstraintInfoOffset;
         uint64 EndOfBody;
-        QWORD _unknownQWORD;
-        QWORD _unknownQWORD;
+        QWORD _UnknownQWORD;
+        QWORD _UnknownQWORD;
         uint64 SimpleConstraintTableOffset;
         uint64 SimpleConstraintSourceTableOffset;
         uint64 AimConstraintTableOffset;
-        QWORD _unknownQWORD;
-        QWORD _unknownQWORD;
+        QWORD _UnknownQWORD;
+        QWORD _UnknownQWORD;
         uint64 SectionTypeOffset;
         uint64 ReferenceTableOffset;
-        uint16 _UnknownUINT16;
+        uint16 ExtraJointAmount;
         uint16 ConstraintAmount;
         uint16 ReferenceAmount;
-        uint16 _UnknownShorts[3] <hidden=true>;
+        uint16 _UnknownUINT16;
+        uint16 _UnknownUINT16;
+        uint16 _UnknownUINT16;
         uint16 SimpleConstraintAmount;
         uint16 SimpleConstraintSourceAmount;
         uint16 AimConstraintAmount;
@@ -559,8 +596,8 @@ typedef struct
         byte UnknownBytes[11] <hidden=true>;
         break;
     case 22: // RE4R
-        uint64 EndOfHeader;
-        uint64 BodyOffset;
+        uint64 ExtraJointMapOffset;
+        uint64 ConstraintInfoOffset;
         uint64 EndOfBody;
         QWORD _UnknownQWORD;
         QWORD _UnknownQWORD;
@@ -573,7 +610,7 @@ typedef struct
         uint SectionType[5];
         FSeek(returnPos);
         uint64 ReferenceTableOffset;
-        uint16 _UnknownUINT16;
+        uint16 ExtraJointAmount;
         uint16 ConstraintAmount;
         uint16 ReferenceAmount;
         uint16 UnknownUINT16;
@@ -582,8 +619,8 @@ typedef struct
         QWORD _UnknownQWORD;
         break;
     case 21: // MHRS
-        uint64 EndOfHeader;
-        uint64 BodyOffset;
+        uint64 ExtraJointMapOffset;
+        uint64 ConstraintInfoOffset;
         uint64 EndOfBody;
         QWORD _UnknownQWORD;
         QWORD _UnknownQWORD;
@@ -595,17 +632,16 @@ typedef struct
         uint SectionType[4];
         FSeek(returnPos);
         uint64 ReferenceTableOffset;
-        uint16 _UnknownUINT16;
+        uint16 ExtraJointAmount;
         uint16 ConstraintAmount;
         uint16 ReferenceAmount;
-        QWORD _UnknownQWORD;
-        QWORD _UnknownQWORD;
         uint16 _UnknownUINT16;
-        byte UnknownBytes[6] <hidden=true>;
+        QWORD _UnknownQWORD;
+        QWORD _UnknownQWORD;
         break;
     case 16: // RE8
-        uint64 EndOfHeader;
-        uint64 BodyOffset;
+        uint64 ExtraJointMapOffset;
+        uint64 ConstraintInfoOffset;
         uint64 EndOfBody;
         QWORD _UnknownQWORD;
         QWORD _UnknownQWORD;
@@ -616,15 +652,43 @@ typedef struct
         FSeek(SectionTypeOffset);
         uint SectionType[4];
         FSeek(returnPos);
-        uint16 UnknownJointAmount;
+        uint16 ExtraJointAmount;
+        uint16 ConstraintAmount;
+        uint16 _UnknownUINT16;
+        uint16 _UnknownUINT16;
+        QWORD _UnknownQWORD;
+        break;
+    case 12: // RE3R
+        uint64 ExtraJointMapOffset;
+        uint64 ConstraintInfoOffset;
+        uint64 EndOfBody;
+        QWORD _UnknownQWORD;
+        QWORD _UnknownQWORD;
+        uint64 SimpleConstraintTableOffset;
+        uint64 SimpleConstraintSourceTableOffset;
+        uint16 ExtraJointAmount;
+        uint16 ConstraintAmount;
+        uint16 _UnknownUINT16;
+        uint16 _UnknownUINT16;
+        QWORD _UnknownQWORD;
+        QWORD _UnknownQWORD;
+        break;
+    case 11: // RE2R
+        uint64 ExtraJointMapOffset;
+        uint64 ConstraintInfoOffset;
+        uint64 EndOfBody;
+        QWORD _UnknownQWORD;
+        QWORD _UnknownQWORD;
+        QWORD _UnknownQWORD;
+        uint16 ExtraJointAmount;
         uint16 ConstraintAmount;
         uint16 _UnknownUINT16;
         uint16 _UnknownUINT16;
         QWORD _UnknownQWORD;
         break;
     default:
-        uint64 EndOfHeader;
-        uint64 BodyOffset;
+        uint64 ExtraJointMapOffset;
+        uint64 ConstraintInfoOffset;
         uint64 EndOfBody;
         break;
     }
@@ -666,9 +730,11 @@ BODY3 <name="JCNS Section (Type 3: Aim)", fgcolor=0xEDDC7C>;
 
 typedef struct 
 {
-    UnkJoint UnknownJointInfo[header.UnknownJointAmount];
+    UnkJoint UnknownJointInfo[header.ExtraJointAmount];
 } 
-BODY_Unk <name="JCNS Unknown Joint Info", read=header.UnknownJointAmount, fgcolor=0xDCED7C, open=false>;
+BODY_UnkJ <name="JCNS Unknown Joint Info", read=header.ExtraJointAmount, fgcolor=0xDCED7C, open=false>;
+
+
 
 //—————————————————/* - FILES - */—————————————————//
 uint32 Version;
@@ -678,9 +744,14 @@ HEADER header;
 switch (Version)
 {
     case 29: // MHWs
+        if (header.ExtraJointAmount > 0)
+        {
+            FSeek(header.ExtraJointMapOffset);
+            BODY_UnkJ body_joints;
+        }
         if (header.ConstraintAmount > 0)
         {
-            FSeek(header.BodyOffset);
+            FSeek(header.ConstraintInfoOffset);
             BODY0 body0;
             FSeek(header.EndOfBody);
         }
@@ -696,30 +767,66 @@ switch (Version)
         }
         break;
     case 22: // RE4R
+        if (header.ExtraJointAmount > 0)
+        {
+            FSeek(header.ExtraJointMapOffset);
+            BODY_UnkJ body_joints;
+        }
         if (header.ConstraintAmount > 0)
         {
-            FSeek(header.BodyOffset);
+            FSeek(header.ConstraintInfoOffset);
             BODY0 body0;
             FSeek(header.EndOfBody);
         }
         break;
     case 21: // MHRS
+        if (header.ExtraJointAmount > 0)
+        {
+            FSeek(header.ExtraJointMapOffset);
+            BODY_UnkJ body_joints;
+        }
         if (header.ConstraintAmount > 0)
         {
-            FSeek(header.BodyOffset);
+            FSeek(header.ConstraintInfoOffset);
             BODY0 body0;
             FSeek(header.EndOfBody);
         }
         break;
     case 16: // RE8
-        if (header.UnknownJointAmount > 0)
+        if (header.ExtraJointAmount > 0)
         {
-            FSeek(header.EndOfHeader);
-            BODY_Unk body;
+            FSeek(header.ExtraJointMapOffset);
+            BODY_UnkJ body_joints;
         }
         if (header.ConstraintAmount > 0)
         {
-            FSeek(header.BodyOffset);
+            FSeek(header.ConstraintInfoOffset);
+            BODY0 body0;
+            FSeek(header.EndOfBody);
+        }
+        break;
+    case 12: // RE3R
+        if (header.ExtraJointAmount > 0)
+        {
+            FSeek(header.ExtraJointMapOffset);
+            BODY_UnkJ body_joints;
+        }
+        if (header.ConstraintAmount > 0)
+        {
+            FSeek(header.ConstraintInfoOffset);
+            BODY0 body0;
+            FSeek(header.EndOfBody);
+        }
+        break;
+    case 11: // RE2R
+        if (header.ExtraJointAmount > 0)
+        {
+            FSeek(header.ExtraJointMapOffset);
+            BODY_UnkJ body_joints;
+        }
+        if (header.ConstraintAmount > 0)
+        {
+            FSeek(header.ConstraintInfoOffset);
             BODY0 body0;
             FSeek(header.EndOfBody);
         }
