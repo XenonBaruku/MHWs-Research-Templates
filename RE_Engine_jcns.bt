@@ -3,7 +3,7 @@
 //
 //      File: RE_Engine_jcns.bt
 //   Authors: XenonValstrax
-//   Version: 0.61
+//   Version: 0.62
 //   Purpose: Parsing Joint Constraints (*.jcns) files from Most RE Games
 //  Category: RE Engine
 // File Mask: *.jcns.*
@@ -56,11 +56,11 @@ enum <uint8> TransformationID
     BlendShape,
     UnkCtrl_4,
     UnkTopBank_5,
-    Material_Scalar=7, 
+    Material_Color=7, 
     Material_4D, 
     Material_3D, 
     Material_2D, 
-    Material_Color, 
+    Scalar, 
     Unknown_12,
     UnkRotation_13, 
     UnkRotation_14, 
@@ -289,11 +289,16 @@ typedef struct
     uint64           ExtOffset <name="UnknownExtraInfoOffset", fgcolor=cLtGreen>; 
     WStringOffset    SourceName <name="Source: Name">;
     hash             SourceHash <name="Source: Hash", comment="Hash here is read from file directly.">;
-    uint             UnknownExt1Amount <name="UnknownExtraInfoAmount", fgcolor=cLtGreen>;
-    TransformationID Transformation;
+    uint16           UnknownExt1Amount <name="UnknownExtraInfoAmount", fgcolor=cLtGreen>;
+    uint16           _UnknownUINT16 <fgcolor=cLtBlue>;
+    byte             _UnknownByte;
     byte             _UnknownByte;
     AxisID           SourceAxis;
-    byte             UnknownBytes[5];
+    byte             _UnknownByte;
+    byte             _UnknownByte;
+    byte             _UnknownByte;
+    byte             _UnknownByte;
+    byte             _UnknownByte;
     range            MapFromRange <name="MapFrom: Range">;
     range            MapToRange <name="MapTo: Range">;
     vec4             _UnknownVector;
@@ -326,7 +331,7 @@ typedef struct
     range            MapFromRange <name="MapFrom: Range">;
     range            MapToRange <name="MapTo: Range">;
     byte             _UnknownByte;
-    TransformationID Transformation;
+    byte             _UnknownByte;
     AxisID           SourceAxis;
     byte             UnknownBytes[5];
     vec4             _UnknownVector;
@@ -398,11 +403,14 @@ typedef struct
 {
     ExtraConstraintInfo    ExtraCnsInfo;
     ConstraintSourceList   CSourceList <open=suppress>;
-    WStringOffset          ObjectName <name="Object: Name", comment="Name of bone, material, etc.">;
+    WStringOffset          ObjectName <name="Object: Name", comment="Name of bone, material, blendshape, RSZobject, etc.">;
     if (Version > 12)
-    { WStringOffset        MaterialProperty <comment="Material properties in mdf2, such as Blend_A, Blend_B, etc.">; }
+    { WStringOffset        Property <name="Object: Property", comment="Object Property, such as Blend_[A-F] for material, etc.">; }
     hash                   ObjectHash <name="Object: Hash", comment="Hash here is read from file directly.">;
-    hash                   PropertyHash <name="Property: Hash", comment="Hash here is read from file directly.">; 
+    if (Version > 12)
+    { hash                 PropertyHash <name="Property: Hash", comment="Hash here is read from file directly.">; }
+    else
+    { uint32               _UnknownUINT32; }
     uint8                  StandaloneConstraintInfoAmount <fgcolor=cLtYellow, bgcolor=cBlack>;
     uint8                  SourceAmount   <fgcolor=cLtRed, bgcolor=cBlack>;
     uint8                  _UnknownByte   <bgcolor=cBlack, comment="Mix?">;
