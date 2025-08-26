@@ -3,8 +3,8 @@
 //
 //      File: RE_Engine_jcns.bt
 //   Authors: XenonValstrax
-//   Version: 0.63
-//   Purpose: Parsing Joint Constraints (*.jcns) files from Most RE Games
+//   Version: 0.64
+//   Purpose: Parsing Joint Constraints (*.jcns) files from most RE Engine games
 //  Category: RE Engine
 // File Mask: *.jcns.*
 //  ID Bytes: 
@@ -432,11 +432,22 @@ typedef struct
         {
             float    _UnknwonFloat32;
             float    _UnknwonFloat32;
+            if (Version == 29)
+            {
+                float    _UnknwonFloat32;
+                float    _UnknwonFloat32;
+                float    _UnknwonFloat32;
+            }
             uint8    _UnknownUINT8 <comment="Usually 3">;
             //AxisID   Axis  <comment="Not sure">;
             uint8    _UnknownUINT8 <comment="Axis?">;
             uint8    _UnknownUINT8;
             uint8    _UnknownUINT8;
+            if (Version == 29)
+            {
+                float    _UnknwonFloat32;
+                float    _UnknwonFloat32;
+            }
         } //ExtraInfo[Amount] <read=Str("%s : (%f, %f)", EnumToString(Axis), _UnknwonFloat32[0], _UnknwonFloat32[1]), optimize=false>;
         ExtraInfo[Amount] <read=Str("%u : (%f, %f)", _UnknownUINT8[1], _UnknwonFloat32[0], _UnknwonFloat32[1]), optimize=false>;
     }
@@ -598,10 +609,9 @@ ConstraintSimple <read=Str("%X <%u Source(s)>", ObjectHash, SourceInfo.SourceAmo
 
 typedef struct
 {
-    
-    uint64   offset;
+    uint64   Offset;
     local uint returnPos = FTell();
-    FSeek(offset);
+    FSeek(Offset);
     hash     TargetBoneHash;
     float    Influence;
     QWORD    Padding;
@@ -689,7 +699,7 @@ typedef struct
         uint8  SectionAmount;
         local uint64 returnPos = FTell();
         FSeek(SectionTypeOffset);
-        uint SectionType[SectionAmount];
+        uint32 SectionType[SectionAmount];
         FSeek(returnPos);
         byte UnknownBytes[11] <hidden=true>;
         break;
@@ -697,92 +707,105 @@ typedef struct
         uint64 ExtraJointMapOffset;
         uint64 ConstraintInfoOffset;
         uint64 ConstraintSettingOffset;
-        QWORD _UnknownQWORD;
-        QWORD _UnknownQWORD;
+        uint64 OrientInfoOffset;
         uint64 SimpleConstraintTableOffset;
         uint64 SimpleConstraintSourceTableOffset;
-        QWORD _UnknownQWORD;
+        uint64 AimConstraintTableOffset;
+        uint64 MaterialDriveInfoOffset;
         uint64 SectionTypeOffset;
-        local uint64 returnPos = FTell();
-        FSeek(SectionTypeOffset);
-        uint SectionType[5];
-        FSeek(returnPos);
         uint64 ReferenceTableOffset;
         uint16 ExtraJointAmount;
         uint16 ConstraintAmount;
         uint16 ReferenceAmount;
         uint16 ConstraintSettingAmount;
-        QWORD _UnknownQWORD;
-        QWORD _UnknownQWORD;
-        QWORD _UnknownQWORD;
+        uint16 OrientInfoAmount;
+        uint16 SimpleConstraintAmount;
+        uint16 SimpleConstraintSourceAmount;
+        uint16 AimConstraintAmount;
+        uint16 MaterialDriveInfoAmount;
+        byte   UnknownBytes[14];
+        local uint64 returnPos = FTell();
+        FSeek(SectionTypeOffset);
+        uint32 SectionType[5];
+        FSeek(returnPos);
         break;
     case 21: // MHRS
         uint64 ExtraJointMapOffset;
         uint64 ConstraintInfoOffset;
         uint64 ConstraintSettingOffset;
-        QWORD _UnknownQWORD;
-        QWORD _UnknownQWORD;
+        uint64 OrientInfoOffset;
         uint64 SimpleConstraintTableOffset;
         uint64 SimpleConstraintSourceTableOffset;
+        uint64 AimConstraintTableOffset;
         uint64 SectionTypeOffset;
-        local uint64 returnPos = FTell();
-        FSeek(SectionTypeOffset);
-        uint SectionType[4];
-        FSeek(returnPos);
         uint64 ReferenceTableOffset;
         uint16 ExtraJointAmount;
         uint16 ConstraintAmount;
         uint16 ReferenceAmount;
         uint16 ConstraintSettingAmount;
-        QWORD _UnknownQWORD;
-        QWORD _UnknownQWORD;
+        uint16 OrientInfoAmount;
+        uint16 SimpleConstraintAmount;
+        uint16 SimpleConstraintSourceAmount;
+        uint16 AimConstraintAmount;
+        byte   UnknownBytes[8];
+        local uint64 returnPos = FTell();
+        FSeek(SectionTypeOffset);
+        uint32 SectionType[4];
+        FSeek(returnPos);
         break;
     case 16: // RE8
         uint64 ExtraJointMapOffset;
         uint64 ConstraintInfoOffset;
         uint64 ConstraintSettingOffset;
-        QWORD _UnknownQWORD;
-        QWORD _UnknownQWORD;
+        uint64 OrientInfoOffset;
         uint64 SimpleConstraintTableOffset;
         uint64 SimpleConstraintSourceTableOffset;
+        uint64 AimConstraintTableOffset;
         uint64 SectionTypeOffset;
-        local uint64 returnPos = FTell();
-        FSeek(SectionTypeOffset);
-        uint SectionType[4];
-        FSeek(returnPos);
         uint16 ExtraJointAmount;
         uint16 ConstraintAmount;
         uint16 ConstraintSettingAmount;
-        uint16 _UnknownUINT16;
-        QWORD _UnknownQWORD;
+        uint16 OrientInfoAmount;
+        uint16 SimpleConstraintAmount;
+        uint16 SimpleConstraintSourceAmount;
+        uint16 AimConstraintAmount;
+        byte   UnknownBytes[2];
+        local uint64 returnPos = FTell();
+        FSeek(SectionTypeOffset);
+        uint32 SectionType[4];
+        FSeek(returnPos);
         break;
     case 12: // RE3R
         uint64 ExtraJointMapOffset;
         uint64 ConstraintInfoOffset;
         uint64 ConstraintSettingOffset;
-        QWORD _UnknownQWORD;
-        QWORD _UnknownQWORD;
+        uint64 OrientInfoOffset;
         uint64 SimpleConstraintTableOffset;
         uint64 SimpleConstraintSourceTableOffset;
+        uint64 AimConstraintTableOffset;
         uint16 ExtraJointAmount;
         uint16 ConstraintAmount;
         uint16 ConstraintSettingAmount;
-        uint16 _UnknownUINT16;
-        QWORD _UnknownQWORD;
-        QWORD _UnknownQWORD;
+        uint16 OrientInfoAmount;
+        uint16 SimpleConstraintAmount;
+        uint16 SimpleConstraintSourceAmount;
+        uint16 AimConstraintAmount;
+        byte   UnknownBytes[10];
         break;
     case 11: // RE2R
         uint64 ExtraJointMapOffset;
         uint64 ConstraintInfoOffset;
         uint64 ConstraintSettingOffset;
-        QWORD _UnknownQWORD;
-        QWORD _UnknownQWORD;
-        QWORD _UnknownQWORD;
+        uint64 OrientInfoOffset;
+        uint64 SimpleConstraintTableOffset;
+        uint64 SimpleConstraintSourceTableOffset;
         uint16 ExtraJointAmount;
         uint16 ConstraintAmount;
         uint16 ConstraintSettingAmount;
-        uint16 _UnknownUINT16;
-        QWORD _UnknownQWORD;
+        uint16 OrientInfoAmount;
+        uint16 SimpleConstraintAmount;
+        uint16 SimpleConstraintSourceAmount;
+        byte   UnknownBytes[4];
         break;
     default:
         uint64 ExtraJointMapOffset;
@@ -821,7 +844,6 @@ BODY0 <name="JCNS Section (Type 0: Transformation)", fgcolor=0xFFBD9A, open=true
 
 typedef struct 
 {
-    FSeek(header.OrientInfoOffset);
     OrientationInfo OrientInfo[header.OrientInfoAmount];
     FSeek(header.OrientSettingsOffset);
     uint8 OrientModeSettings[header.OrientSettingAmount];
@@ -830,7 +852,6 @@ BODY1 <name="JCNS Section (Type 1: Orient)", fgcolor=0xBDFF9A, open=true>;
 
 typedef struct
 {
-    FSeek(header.SimpleConstraintTableOffset);
     struct 
     {
         ConstraintSimple SimpleConstraint[header.SimpleConstraintAmount] <fgcolor=0xFF7CEF, optimize=false>;
@@ -846,7 +867,6 @@ BODY2 <name="JCNS Section (Type 2: Simple)", open=true, fgcolor=0xFF7CEF>;
 
 typedef struct
 {
-    FSeek(header.AimConstraintTableOffset);
     ConstraintAim AimConstraint[header.AimConstraintAmount] <optimize=false>;
 }
 BODY3 <name="JCNS Section (Type 3: Aim)", fgcolor=0xEDDC7C>;
@@ -861,7 +881,6 @@ BODY4 <name="JCNS Section (Type 4: Material Drive)", fgcolor=0x00EDFF>;
 typedef struct 
 {
     //WStringOffset JointExportGraphPath;
-    FSeek(header.JointExportGraphInfoOffset);
     uint64 PathOffset;
     FSeek(PathOffset);
     wstring Path;
@@ -884,22 +903,27 @@ switch (Version)
         }
         if (header.OrientInfoAmount > 0)
         {
+            FSeek(header.OrientInfoOffset);
             BODY1 body1;
         }
         if (header.SimpleConstraintAmount > 0)
         {
+            FSeek(header.SimpleConstraintTableOffset);
             BODY2 body2;
         }
         if (header.AimConstraintAmount > 0)
         {
+            FSeek(header.AimConstraintTableOffset);
             BODY3 body3;
         }
         if (header.MaterialDriveInfoAmount > 0)
         {
+            FSeek(header.MaterialDriveInfoOffset);
             BODY4 body4;
         }
         if (header.JointExportGraphInfoOffset > 0)
         {
+            FSeek(header.JointExportGraphInfoOffset);
             BODY5 body5;
         }
         break;
