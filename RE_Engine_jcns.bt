@@ -3,7 +3,7 @@
 //
 //      File: RE_Engine_jcns.bt
 //   Authors: XenonValstrax
-//   Version: 0.64
+//   Version: 0.65
 //   Purpose: Parsing Joint Constraints (*.jcns) files from most RE Engine games
 //  Category: RE Engine
 // File Mask: *.jcns.*
@@ -330,9 +330,19 @@ SourceExtraInfo;
 // struct ConstraintSource_v2
 typedef struct
 {
+    local uint64 returnPos;
     uint64           ExtraInfoOffset <fgcolor=cLtGreen>; 
     WStringOffset    SourceName <name="Source: Name">;
-    hash             SourceHash <name="Source: Hash", comment="Hash here is read from file directly.">;
+    if (Version >= 102)
+    { 
+        uint32         SourceHashIndex <name="Source: Hash Index", comment="Hash list index.">; 
+        returnPos = FTell();
+        FSeek(header.HashListOffset + SourceHashIndex * 4);
+        hash           SourceHash <name="Source: Hash", comment="Hash here is read from file directly.">;
+        FSeek(returnPos);
+    }
+    else
+    { hash           SourceHash <name="Source: Hash", comment="Hash here is read from file directly.">; }
     uint16           ExtraInfoAmount <fgcolor=cLtGreen>;
     uint16           _UnknownUINT16 <fgcolor=cLtBlue>;
     byte             _UnknownByte;
@@ -347,7 +357,7 @@ typedef struct
     range            MapToRange <name="MapTo: Range">;
     vec4             _UnknownVector;
     
-    local uint32 returnPos = FTell();
+    returnPos = FTell();
     FSeek(ExtraInfoOffset);
     while (true)
     {
@@ -364,7 +374,12 @@ typedef struct
     
     local string readStr;
     local hash readHash = murmur3_32(SourceName.WString);
-    SPrintf(readStr, "%s - %Xh", SourceName.WString, readHash);
+    
+    //if (Version >= 102)
+    //{ SPrintf(readStr, "%s - HashIndex: %u; Hash: %Xh; Hash(Generated): %Xh", SourceName.WString, SourceHashIndex, HashList.Hash[SourceHashIndex], readHash); }
+    //else
+    //{ SPrintf(readStr, "%s - Hash: %Xh; Hash(Generated): %Xh", SourceName.WString, SourceHash, readHash); }
+    SPrintf(readStr, "%s - Hash: %Xh; Hash(Generated): %Xh", SourceName.WString, SourceHash, readHash);
 } 
 ConstraintSource_v2 <read=readStr>;
 
@@ -398,7 +413,8 @@ typedef struct
     local uint ReturnPos = FTell();
     if (Version > 12) 
     { 
-        FSkip(25); 
+        FSkip(25);
+        if (Version >= 102) { FSkip(4); } 
         uint8   SourceAmount;
         FSeek(OffsetSourceList);
         if (SourceAmount > 0) // Prevent warnings
@@ -463,24 +479,46 @@ typedef struct
     WStringOffset          ObjectName <name="Object: Name", comment="Name of bone, material, blendshape, RSZobject, etc.">;
     if (Version > 12)
     { WStringOffset        Property <name="Object: Property", comment="Object Property, such as Blend_[A-F] for material, etc.">; }
+    if (Version >= 102)
+    { uint32               UnknownUINT32; }
     hash                   ObjectHash <name="Object: Hash", comment="Hash here is read from file directly.">;
     if (Version > 12)
     { hash                 PropertyHash <name="Property: Hash", comment="Hash here is read from file directly.">; }
     else
     { uint32               _UnknownUINT32; }
-    uint8                  StandaloneConstraintInfoAmount <fgcolor=cLtYellow, bgcolor=cBlack>;
-    uint8                  SourceAmount   <fgcolor=cLtRed, bgcolor=cBlack>;
-    uint8                  _UnknownByte   <bgcolor=cBlack, comment="Mix?">;
-    TransformationID       Transformation <bgcolor=cBlack>;
-    uint8                  _UnknownByte   <bgcolor=cBlack>;
-    AxisID                 TransformAxis  <bgcolor=cBlack>;
-    uint8                  _UnknownByte   <bgcolor=cBlack>;
-    uint8                  _UnknownByte   <bgcolor=cBlack>;
-    vec4                   _UnknownVector;
-    if (Version >= 21)
+    if (Version < 102)
+    {
+        uint8                  StandaloneConstraintInfoAmount <fgcolor=cLtYellow, bgcolor=cBlack>;
+        uint8                  SourceAmount   <fgcolor=cLtRed, bgcolor=cBlack>;
+        uint8                  _UnknownByte   <bgcolor=cBlack, comment="Mix?">;
+        TransformationID       Transformation <bgcolor=cBlack>;
+        uint8                  _UnknownByte   <bgcolor=cBlack>;
+        AxisID                 TransformAxis  <bgcolor=cBlack>;
+        uint8                  _UnknownByte   <bgcolor=cBlack>;
+        uint8                  _UnknownByte   <bgcolor=cBlack>;
+        vec4                   _UnknownVector;
+    }
+    else if (Version >= 102)
+    {
+        uint8                  StandaloneConstraintInfoAmount <fgcolor=cLtYellow, bgcolor=cBlack>;
+        uint8                  SourceAmount   <fgcolor=cLtRed, bgcolor=cBlack>;
+        uint8                  _UnknownByte   <bgcolor=cBlack>;
+        TransformationID       Transformation <bgcolor=cBlack>;
+        vec4                   _UnknownVector;
+        float                  _UnknownFloat32[2];
+        uint8                  UnknownUINT8;
+        AxisID                 TransformAxis;
+        uint8                  UnknownUINT8;
+        uint8                  UnknownUINT8;
+        uint8                  UnknownUINT8;
+        uint8                  UnknownUINT8;
+        uint8                  UnknownUINT8;
+        uint8                  UnknownUINT8;
+    }
+    if (Version >= 21 && Version < 102)
     {
         float              _UnknownFloat32[2];
-        QWORD              UnknownQWORD;
+        uint8              _UnknownUINT8[8];              
     }
     local string readStr;
     local hash readHash = murmur3_32(ObjectName.WString);
@@ -588,24 +626,69 @@ OrientationInfo;
 typedef struct
 {
     
-    uint64 SourceOffset;
+    uint64 SourceOffset <format=hex>;
     FSkip(4);
-    uint32 SourceAmount;
+    if (Version >= 102)
+    {
+        uint8 SourceAmount;
+        uint8 UnknownUINT8;
+        uint8 UnknownUINT8;
+        uint8 UnknownUINT8;
+    } 
+    else
+    {
+        uint32 SourceAmount;
+    }
     FSkip(-8);
     local uint returnPos = FTell();
     FSeek(SourceOffset);
-    struct { uint  SourceHashIndex; float Weight; } Source[SourceAmount] <read=Str("Index: %u Weight: %f", SourceHashIndex, Weight), optimize=false>;
+    struct 
+    { 
+        local string readStr;
+        if (Version >= 102)
+        { uint32  SourceHashIndex <name="SourceInfoIndex">; }
+        else 
+        { uint32  SourceHashIndex; }
+        float Weight; 
+    } Source[SourceAmount] <read=Str("Index: %u Weight: %f", SourceHashIndex, Weight), optimize=false>;
     FSeek(returnPos);
 } 
 ConstraintSimpleSrc;
 
 typedef struct
 {
-    ConstraintSimpleSrc  SourceInfo;
-    hash                 ObjectHash;
+    local string readStr;
+    ConstraintSimpleSrc  SourceList;
+    local uint64 returnPos;
+    if (Version >= 102)
+    {
+        uint32  ObjectHashIndex;
+        returnPos = FTell();
+        FSeek(header.HashListOffset + ObjectHashIndex * 4);
+        hash    ObjectHash;
+        FSeek(returnPos);
+        SPrintf(readStr, "HashIndex: %u; Hash: %X <%u Source(s)>", ObjectHashIndex, HashList.Hash[ObjectHashIndex], SourceList.SourceAmount);
+    }
+    else
+    { 
+        hash  ObjectHash; 
+        SPrintf(readStr, "Hash: %X <%u Source(s)>", ObjectHash, SourceList.SourceAmount);
+    }
     FSkip(4);
 } 
-ConstraintSimple <read=Str("%X <%u Source(s)>", ObjectHash, SourceInfo.SourceAmount)>;
+ConstraintSimple <read=readStr>;
+
+typedef struct
+{
+    local uint64 returnPos;
+    uint32 SourceHashIndex;
+    returnPos = FTell();
+    FSeek(header.HashListOffset + SourceHashIndex * 4);
+    hash  SourceHash;
+    FSeek(returnPos);
+    uint32 UnknownUINT32;
+} 
+ConstraintSimpleSrcInfo <read=Str("HashIndex: %u; Hash: %X", SourceHashIndex, HashList.Hash[SourceHashIndex]), optimize=true>;
 
 typedef struct
 {
@@ -673,19 +756,57 @@ typedef struct
     FSeek(Tags.DataOffset);
     switch (Version)
     {
+    case 102: // MHWs (TU4)
+        uint64 ExtraJointMapOffset <format=hex>;
+        uint64 ConstraintInfoOffset <format=hex>;
+        uint64 ConstraintSettingOffset <format=hex>;
+        uint64 OrientInfoOffset <format=hex>;
+        uint64 OrientSettingsOffset <format=hex>;
+        uint64 UnknownOffset <format=hex>;
+        uint64 UnknownOffset <format=hex>;
+        uint64 SimpleConstraintTableOffset <format=hex>;
+        uint64 SimpleConstraintSourceTableOffset <format=hex>;
+        uint64 AimConstraintTableOffset <format=hex>;
+        uint64 MaterialDriveInfoOffset <format=hex>;
+        uint64 JointExportGraphInfoOffset <format=hex>;
+        uint64 SectionTypeOffset <format=hex>;
+        uint64 ReferenceTableOffset <format=hex>;
+        uint64 HashListOffset <format=hex>;
+        uint64 UnknownOffset <format=hex>;
+        uint16 HashAmount;
+        uint16 UnknownAmount;
+        uint16 ExtraJointAmount;
+        uint16 ConstraintAmount;
+        uint16 ReferenceAmount;
+        uint16 ConstraintSettingAmount;
+        uint16 OrientInfoAmount;
+        uint16 OrientSettingAmount;
+        uint16 SimpleConstraintAmount;
+        uint16 UnknownAmount;
+        uint16 SimpleConstraintSourceAmount;
+        uint16 AimConstraintAmount;
+        uint16 MaterialDriveInfoAmount;
+        uint16 SectionAmount;
+        uint8  UnknownUINT8[4];
+        local uint64 returnPos = FTell();
+        FSeek(SectionTypeOffset);
+        uint32 SectionType[SectionAmount];
+        FSeek(returnPos);
+        //byte UnknownBytes[11] <hidden=true>;
+        break;
     case 29: // MHWs
-        uint64 ExtraJointMapOffset;
-        uint64 ConstraintInfoOffset;
-        uint64 ConstraintSettingOffset;
-        uint64 OrientInfoOffset;
-        uint64 OrientSettingsOffset;
-        uint64 SimpleConstraintTableOffset;
-        uint64 SimpleConstraintSourceTableOffset;
-        uint64 AimConstraintTableOffset;
-        uint64 MaterialDriveInfoOffset;
-        uint64 JointExportGraphInfoOffset;
-        uint64 SectionTypeOffset;
-        uint64 ReferenceTableOffset;
+        uint64 ExtraJointMapOffset <format=hex>;
+        uint64 ConstraintInfoOffset <format=hex>;
+        uint64 ConstraintSettingOffset <format=hex>;
+        uint64 OrientInfoOffset <format=hex>;
+        uint64 OrientSettingsOffset <format=hex>;
+        uint64 SimpleConstraintTableOffset <format=hex>;
+        uint64 SimpleConstraintSourceTableOffset <format=hex>;
+        uint64 AimConstraintTableOffset <format=hex>;
+        uint64 MaterialDriveInfoOffset <format=hex>;
+        uint64 JointExportGraphInfoOffset <format=hex>;
+        uint64 SectionTypeOffset <format=hex>;
+        uint64 ReferenceTableOffset <format=hex>;
         uint16 ExtraJointAmount;
         uint16 ConstraintAmount;
         uint16 ReferenceAmount;
@@ -704,16 +825,16 @@ typedef struct
         byte UnknownBytes[11] <hidden=true>;
         break;
     case 22: // RE4R
-        uint64 ExtraJointMapOffset;
-        uint64 ConstraintInfoOffset;
-        uint64 ConstraintSettingOffset;
-        uint64 OrientInfoOffset;
-        uint64 SimpleConstraintTableOffset;
-        uint64 SimpleConstraintSourceTableOffset;
-        uint64 AimConstraintTableOffset;
-        uint64 MaterialDriveInfoOffset;
-        uint64 SectionTypeOffset;
-        uint64 ReferenceTableOffset;
+        uint64 ExtraJointMapOffset <format=hex>;
+        uint64 ConstraintInfoOffset <format=hex>;
+        uint64 ConstraintSettingOffset <format=hex>;
+        uint64 OrientInfoOffset <format=hex>;
+        uint64 SimpleConstraintTableOffset <format=hex>;
+        uint64 SimpleConstraintSourceTableOffset <format=hex>;
+        uint64 AimConstraintTableOffset <format=hex>;
+        uint64 MaterialDriveInfoOffset <format=hex>;
+        uint64 SectionTypeOffset <format=hex>;
+        uint64 ReferenceTableOffset <format=hex>;
         uint16 ExtraJointAmount;
         uint16 ConstraintAmount;
         uint16 ReferenceAmount;
@@ -730,15 +851,15 @@ typedef struct
         FSeek(returnPos);
         break;
     case 21: // MHRS
-        uint64 ExtraJointMapOffset;
-        uint64 ConstraintInfoOffset;
-        uint64 ConstraintSettingOffset;
-        uint64 OrientInfoOffset;
-        uint64 SimpleConstraintTableOffset;
-        uint64 SimpleConstraintSourceTableOffset;
-        uint64 AimConstraintTableOffset;
-        uint64 SectionTypeOffset;
-        uint64 ReferenceTableOffset;
+        uint64 ExtraJointMapOffset <format=hex>;
+        uint64 ConstraintInfoOffset <format=hex>;
+        uint64 ConstraintSettingOffset <format=hex>;
+        uint64 OrientInfoOffset <format=hex>;
+        uint64 SimpleConstraintTableOffset <format=hex>;
+        uint64 SimpleConstraintSourceTableOffset <format=hex>;
+        uint64 AimConstraintTableOffset <format=hex>;
+        uint64 SectionTypeOffset <format=hex>;
+        uint64 ReferenceTableOffset <format=hex>;
         uint16 ExtraJointAmount;
         uint16 ConstraintAmount;
         uint16 ReferenceAmount;
@@ -754,14 +875,14 @@ typedef struct
         FSeek(returnPos);
         break;
     case 16: // RE8
-        uint64 ExtraJointMapOffset;
-        uint64 ConstraintInfoOffset;
-        uint64 ConstraintSettingOffset;
-        uint64 OrientInfoOffset;
-        uint64 SimpleConstraintTableOffset;
-        uint64 SimpleConstraintSourceTableOffset;
-        uint64 AimConstraintTableOffset;
-        uint64 SectionTypeOffset;
+        uint64 ExtraJointMapOffset <format=hex>;
+        uint64 ConstraintInfoOffset <format=hex>;
+        uint64 ConstraintSettingOffset <format=hex>;
+        uint64 OrientInfoOffset <format=hex>;
+        uint64 SimpleConstraintTableOffset <format=hex>;
+        uint64 SimpleConstraintSourceTableOffset <format=hex>;
+        uint64 AimConstraintTableOffset <format=hex>;
+        uint64 SectionTypeOffset <format=hex>;
         uint16 ExtraJointAmount;
         uint16 ConstraintAmount;
         uint16 ConstraintSettingAmount;
@@ -776,13 +897,13 @@ typedef struct
         FSeek(returnPos);
         break;
     case 12: // RE3R
-        uint64 ExtraJointMapOffset;
-        uint64 ConstraintInfoOffset;
-        uint64 ConstraintSettingOffset;
-        uint64 OrientInfoOffset;
-        uint64 SimpleConstraintTableOffset;
-        uint64 SimpleConstraintSourceTableOffset;
-        uint64 AimConstraintTableOffset;
+        uint64 ExtraJointMapOffset <format=hex>;
+        uint64 ConstraintInfoOffset <format=hex>;
+        uint64 ConstraintSettingOffset <format=hex>;
+        uint64 OrientInfoOffset <format=hex>;
+        uint64 SimpleConstraintTableOffset <format=hex>;
+        uint64 SimpleConstraintSourceTableOffset <format=hex>;
+        uint64 AimConstraintTableOffset <format=hex>;
         uint16 ExtraJointAmount;
         uint16 ConstraintAmount;
         uint16 ConstraintSettingAmount;
@@ -792,13 +913,13 @@ typedef struct
         uint16 AimConstraintAmount;
         byte   UnknownBytes[10];
         break;
-    case 11: // RE2R
-        uint64 ExtraJointMapOffset;
-        uint64 ConstraintInfoOffset;
-        uint64 ConstraintSettingOffset;
-        uint64 OrientInfoOffset;
-        uint64 SimpleConstraintTableOffset;
-        uint64 SimpleConstraintSourceTableOffset;
+    case 11: // RE2R, DMC5
+        uint64 ExtraJointMapOffset <format=hex>;
+        uint64 ConstraintInfoOffset <format=hex>;
+        uint64 ConstraintSettingOffset <format=hex>;
+        uint64 OrientInfoOffset <format=hex>;
+        uint64 SimpleConstraintTableOffset <format=hex>;
+        uint64 SimpleConstraintSourceTableOffset <format=hex>;
         uint16 ExtraJointAmount;
         uint16 ConstraintAmount;
         uint16 ConstraintSettingAmount;
@@ -808,9 +929,9 @@ typedef struct
         byte   UnknownBytes[4];
         break;
     default:
-        uint64 ExtraJointMapOffset;
-        uint64 ConstraintInfoOffset;
-        uint64 ConstraintSettingOffset;
+        uint64 ExtraJointMapOffset <format=hex>;
+        uint64 ConstraintInfoOffset <format=hex>;
+        uint64 ConstraintSettingOffset <format=hex>;
         break;
     }
 } 
@@ -860,7 +981,12 @@ typedef struct
     if (header.SimpleConstraintSourceAmount != 0)
     {
         FSeek(header.SimpleConstraintSourceTableOffset);
-        hash SourceHashes[header.SimpleConstraintSourceAmount];
+        if (Version >= 102)
+        {
+            ConstraintSimpleSrcInfo SimpleConstraintSourceInfo[header.SimpleConstraintSourceAmount];
+        }
+        else
+        { hash SourceHashes[header.SimpleConstraintSourceAmount]; }
     }
 }
 BODY2 <name="JCNS Section (Type 2: Simple)", open=true, fgcolor=0xFF7CEF>;
@@ -887,7 +1013,11 @@ typedef struct
 } 
 BODY5 <name="JCNS Section (Type 5: Joint Export Graph Info)", open=true, fgcolor=0x0000ED>;
 
-
+typedef struct 
+{
+    hash Hash[header.HashAmount];
+} 
+HASHLIST <name="JCNS Hash List", open=true, fgcolor=0x45C032>;
 
 //—————————————————/* - FILES - */—————————————————//
 uint32 Version;
@@ -896,6 +1026,44 @@ HEADER header;
 // Maybe do this for other RE games... If time allows
 switch (Version)
 {
+    case 102: // MHWs
+        if (header.HashAmount > 0)
+        {
+            FSeek(header.HashListOffset);
+            //uint32 HashList[header.HashAmount] <format=hex>;
+            HASHLIST HashList;
+        }
+        if (header.ExtraJointAmount > 0 || header.ConstraintAmount > 0)
+        {
+            FSeek(header.ExtraJointMapOffset);
+            BODY0 body0;
+        }
+        if (header.OrientInfoAmount > 0)
+        {
+            FSeek(header.OrientInfoOffset);
+            BODY1 body1;
+        }
+        if (header.SimpleConstraintAmount > 0)
+        {
+            FSeek(header.SimpleConstraintTableOffset);
+            BODY2 body2;
+        }
+        if (header.AimConstraintAmount > 0)
+        {
+            FSeek(header.AimConstraintTableOffset);
+            BODY3 body3;
+        }
+        if (header.MaterialDriveInfoAmount > 0)
+        {
+            FSeek(header.MaterialDriveInfoOffset);
+            BODY4 body4;
+        }
+        if (header.JointExportGraphInfoOffset > 0)
+        {
+            FSeek(header.JointExportGraphInfoOffset);
+            BODY5 body5;
+        }
+        break;
     case 29: // MHWs
         if (header.ExtraJointAmount > 0 || header.ConstraintAmount > 0)
         {
