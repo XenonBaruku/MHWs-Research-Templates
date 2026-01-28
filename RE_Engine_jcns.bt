@@ -3,7 +3,7 @@
 //
 //      File: RE_Engine_jcns.bt
 //   Authors: XenonValstrax
-//   Version: 0.65c
+//   Version: 0.65d
 //   Purpose: Parsing Joint Constraints (*.jcns) files from most RE Engine games
 //  Category: RE Engine
 // File Mask: *.jcns.*
@@ -91,7 +91,7 @@ typedef struct
     float UnknownFloat32;
     float min <name="Minimum">;
 } 
-range <read=Str("[%.3f, %.3f, %.3f]", min, UnknownFloat32, max), write=RangeFWrite>;
+range <read=Str("[%.3f, %.3f, %.3f]", max, UnknownFloat32, min), write=RangeFWrite>;
 
 // WStringOffset
 typedef struct 
@@ -145,7 +145,7 @@ void AddCSource(wstring name)
 
 void RangeFWrite( range &r, string s )
 {
-    SScanf( s, "[%f, %f]", r.min, r.max );
+    SScanf( s, "[%f, %f, %f]", r.max, r.UnknownFloat32, r.min );
 }
 
 void Vec3FWrite( vec3 &v, string s )
@@ -417,8 +417,8 @@ typedef struct
     hash             SourceHash <name="Source: Hash", comment="Hash here is read from file directly.">;
     range            MapFromRange <name="MapFrom: Range">;
     range            MapToRange <name="MapTo: Range">;
-    byte             UnknownByte;
-    byte             UnknownByte;
+    byte             UnknownUInt8;
+    byte             UnknownUInt8;
     AxisID           SourceAxis;
     byte             UnknownBytes[5];
     vec4             UnknownVector;
@@ -437,7 +437,7 @@ typedef struct
     //FSkip(-1);
     
     uint64  OffsetSourceList;
-    local uint ReturnPos = FTell();
+    local uint64 ReturnPos = FTell();
     if (Version > 12) 
     { 
         FSkip(25);
@@ -474,13 +474,13 @@ typedef struct
         FSeek(Offset);
         struct 
         {
-            float    _UnknwonFloat32;
-            float    _UnknwonFloat32;
+            float    UnknwonFloat32;
+            float    UnknwonFloat32;
             if (Version == 29)
             {
-                float    _UnknwonFloat32;
-                float    _UnknwonFloat32;
-                float    _UnknwonFloat32;
+                float    UnknwonFloat32;
+                float    UnknwonFloat32;
+                float    UnknwonFloat32;
             }
             uint8    UnknownUInt8 <comment="Usually 3">;
             //AxisID   Axis  <comment="Not sure">;
@@ -502,13 +502,20 @@ ExtraConstraintInfo <name="Constraint: Extra Info", read=Str("< %u Extra Constra
 // struct Constraint
 typedef struct
 {
+    local uint64 returnPos;
     ExtraConstraintInfo    ExtraCnsInfo;
     ConstraintSourceList   CSourceList <open=suppress>;
     WStringOffset          ObjectName <name="Object: Name", comment="Name of bone, material, blendshape, RSZobject, etc.">;
     if (Version > 12)
     { WStringOffset        Property <name="Object: Property", comment="Object Property, such as Blend_[A-F] for material, etc.">; }
     if (Version >= 35)
-    { uint32               UnknownUInt32; }
+    { 
+        uint32               ObjectHashIndex <name="Object: Hash List Index">; 
+        returnPos = FTell();
+        FSeek(header.HashListOffset + ObjectHashIndex * 4);
+        hash ObjectHashFromHashList <name="Object: Hash (From Hash List)">;
+        FSeek(returnPos);
+    }
     hash                   ObjectHash <name="Object: Hash", comment="Hash here is read from file directly.">;
     if (Version > 12)
     { hash                 PropertyHash <name="Property: Hash", comment="Hash here is read from file directly.">; }
@@ -535,18 +542,25 @@ typedef struct
     {
         uint8                  ExtraConstraintInfoCount <fgcolor=cLtYellow, bgcolor=cBlack>;
         uint8                  SourceCount   <fgcolor=cLtRed, bgcolor=cBlack>;
-        uint8                  UnknownByte   <bgcolor=cBlack, comment="Mix?">;
+        uint8                  UnknownUInt8   <bgcolor=cBlack, comment="Mix?">;
         TransformationID       Transformation <bgcolor=cBlack>;
-        uint8                  UnknownByte   <bgcolor=cBlack>;
+        uint8                  UnknownUInt8   <bgcolor=cBlack>;
         AxisID                 TransformAxis  <bgcolor=cBlack>;
-        uint8                  UnknownByte   <bgcolor=cBlack>;
-        uint8                  UnknownByte   <bgcolor=cBlack>;
+        uint8                  UnknownUInt8   <bgcolor=cBlack>;
+        uint8                  UnknownUInt8   <bgcolor=cBlack>;
         vec4                   UnknownVector;
     }
     if (Version >= 21 && Version < 35)
     {
         float              UnknownFloat32[2];
-        uint8              UnknownUInt8[8];              
+        uint8              UnknownUInt8;
+        uint8              UnknownUInt8;
+        uint8              UnknownUInt8;
+        uint8              UnknownUInt8;
+        uint8              UnknownUInt8;
+        uint8              UnknownUInt8;
+        uint8              UnknownUInt8;
+        uint8              UnknownUInt8;
     }
     local string readStr;
     local hash readHash = murmur3_32(ObjectName.WString);
@@ -787,17 +801,17 @@ typedef struct
     struct TAG
     {
         byte   signature[4];
-        QWORD UnknownQWORD;
+        QWORD  UnknownQWORD;
         uint64 InfoOffset;
-        QWORD UnknownQWORD;
+        QWORD  UnknownQWORD;
         uint64 FileEntry;
-        QWORD UnknownQWORD;
+        QWORD  UnknownQWORD;
         FSeek(InfoOffset);
-        QWORD UnknownQWORD;
-        QWORD UnknownQWORD;
+        QWORD  UnknownQWORD;
+        QWORD  UnknownQWORD;
         FSeek(FileEntry);
         uint64 DataOffset;
-        QWORD UnknownQWORD;
+        QWORD  UnknownQWORD;
     } Tags <comment="Usually the same in most files from diffent RE games.">;
     FSeek(Tags.DataOffset);
     switch (Version)
