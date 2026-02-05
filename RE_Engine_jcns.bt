@@ -3,7 +3,7 @@
 //
 //      File: RE_Engine_jcns.bt
 //   Authors: XenonValstrax
-//   Version: 0.65d
+//   Version: 0.65e
 //   Purpose: Parsing Joint Constraints (*.jcns) files from most RE Engine games
 //  Category: RE Engine
 // File Mask: *.jcns.*
@@ -24,7 +24,7 @@
 //     21       -  Monster Hunter Rise Sunbreak
 //     22       -  Resident Evil 4 Remake / Street Fighter 6
 //     29, 102  -  Monster Hunter Wilds
-//     35       -  PRAGMATA SKETCHBOOK DEMO
+//     35       -  PRAGMATA SKETCHBOOK DEMO / Monster Hunter Stories 3 Trial
 
 LittleEndian();
 SetUnoptimizedArraysCollapsible(0);
@@ -87,11 +87,11 @@ enum <uint8> AxisID { X, Y, Z, W, UnknownAxis_4, UnknownAxis_5, UnknownAxis_6, U
 // range
 typedef struct
 {
-    float max <name="Maximum">;
-    float UnknownFloat32;
     float min <name="Minimum">;
+    float UnknownFloat32;
+    float max <name="Maximum">;
 } 
-range <read=Str("[%.3f, %.3f, %.3f]", max, UnknownFloat32, min), write=RangeFWrite>;
+range <read=Str("[%.3f, %.3f, %.3f]", min, UnknownFloat32, max), write=RangeFWrite>;
 
 // WStringOffset
 typedef struct 
@@ -145,7 +145,7 @@ void AddCSource(wstring name)
 
 void RangeFWrite( range &r, string s )
 {
-    SScanf( s, "[%f, %f, %f]", r.max, r.UnknownFloat32, r.min );
+    SScanf( s, "[%f, %f, %f]", r.min, r.UnknownFloat32, r.max );
 }
 
 void Vec3FWrite( vec3 &v, string s )
@@ -364,7 +364,7 @@ typedef struct
     { 
         uint32         SourceHashIndex <name="Source: Hash Index", comment="Hash list index.">; 
         returnPos = FTell();
-        FSeek(header.HashListOffset + SourceHashIndex * 4);
+        FSeek(header.HashListEntry + SourceHashIndex * 4);
         hash           SourceHash <name="Source: Hash", comment="Hash here is read from file directly.">;
         FSeek(returnPos);
     }
@@ -512,7 +512,7 @@ typedef struct
     { 
         uint32               ObjectHashIndex <name="Object: Hash List Index">; 
         returnPos = FTell();
-        FSeek(header.HashListOffset + ObjectHashIndex * 4);
+        FSeek(header.HashListEntry + ObjectHashIndex * 4);
         hash ObjectHashFromHashList <name="Object: Hash (From Hash List)">;
         FSeek(returnPos);
     }
@@ -706,7 +706,7 @@ typedef struct
     {
         uint32  ObjectHashIndex;
         returnPos = FTell();
-        FSeek(header.HashListOffset + ObjectHashIndex * 4);
+        FSeek(header.HashListEntry + ObjectHashIndex * 4);
         hash    ObjectHash;
         FSeek(returnPos);
         SPrintf(readStr, "HashIndex: %u; Hash: %X <%u Source(s)>", ObjectHashIndex, HashList.Hash[ObjectHashIndex], SourceList.SourceCount);
@@ -725,7 +725,7 @@ typedef struct
     local uint64 returnPos;
     uint32 SourceHashIndex;
     returnPos = FTell();
-    FSeek(header.HashListOffset + SourceHashIndex * 4);
+    FSeek(header.HashListEntry + SourceHashIndex * 4);
     hash  SourceHash;
     FSeek(returnPos);
     uint32 UnknownUInt32;
@@ -741,7 +741,7 @@ typedef struct
     {
         uint32       TargetBoneHashIndex;
         local uint64 returnPos2 = FTell();
-        FSeek(header.HashListOffset + TargetBoneHashIndex * 4);
+        FSeek(header.HashListEntry + TargetBoneHashIndex * 4);
         hash         TargetBoneHash;
         FSeek(returnPos2);
     }
@@ -760,7 +760,7 @@ typedef struct
     {
         uint32        BoneHashIndex;
         local uint64 returnPos = FTell();
-        FSeek(header.HashListOffset + BoneHashIndex * 4);
+        FSeek(header.HashListEntry + BoneHashIndex * 4);
         hash          BoneHash;
         FSeek(returnPos);
     }
@@ -831,7 +831,7 @@ typedef struct
         uint64 JointExportGraphInfoEntry <format=hex>;
         uint64 SectionTypeEntry <format=hex>;
         uint64 ReferenceTableEntry <format=hex>;
-        uint64 HashListOffset <format=hex>;
+        uint64 HashListEntry <format=hex>;
         uint64 UnknownEntry <format=hex>;
         uint16 HashCount;
         uint16 UnknownCount;
@@ -854,7 +854,7 @@ typedef struct
         FSeek(returnPos);
         //byte UnknownBytes[11] <hidden=true>;
         break;
-    case 35: // PRAGMATA SKETCHBOOK - DEMO
+    case 35: // PRAGMATA SKETCHBOOK - DEMO, MHS3Trial
         uint64 ExtraJointMapEntry <format=hex>;
         uint64 ConstraintInfoEntry <format=hex>;
         uint64 ConstraintSettingEntry <format=hex>;
@@ -869,7 +869,7 @@ typedef struct
         uint64 JointExportGraphInfoEntry <format=hex>;
         uint64 SectionTypeEntry <format=hex>;
         uint64 ReferenceTableEntry <format=hex>;
-        uint64 HashListOffset <format=hex>;
+        uint64 HashListEntry <format=hex>;
         uint16 HashCount;
         uint16 UnknownCount;
         uint16 ExtraJointCount;
@@ -1128,7 +1128,7 @@ switch (Version)
     case 102: // MHWs (TU4)
         if (header.HashCount > 0)
         {
-            FSeek(header.HashListOffset);
+            FSeek(header.HashListEntry);
             //uint32 HashList[header.HashCount] <format=hex>;
             HASHLIST HashList;
         }
@@ -1166,7 +1166,7 @@ switch (Version)
     case 35: // PRAGMATA SKETCHBOOK - DEMO
         if (header.HashCount > 0)
         {
-            FSeek(header.HashListOffset);
+            FSeek(header.HashListEntry);
             //uint32 HashList[header.HashCount] <format=hex>;
             HASHLIST HashList;
         }
