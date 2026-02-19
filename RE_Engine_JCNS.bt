@@ -14,8 +14,7 @@
 //  Almost done...
 //  TODO:
 //      1) Editing (Maybe do this in Blender or something else)
-//      2) Full unicode support for hash generate
-//      3) Parsing "ExtraJoints" section for jcns version >= 29
+//      2) Full unicode support for hash generation
 //      
 // < SUPPORTED VERSIONS / GAMES >
 //     11       -  Resident Evil 2 Remake / Devil May Cry 5
@@ -53,10 +52,13 @@ vec4 <read=Str("[%f, %f, %f, %f]", axisX, axisY, axisZ, axisW), write=Vec4FWrite
 // matrix 4x4
 typedef struct
 {
-    float A[4];
-    float B[4];
-    float C[4];
-    float D[4];
+    struct
+    {
+        float column;
+        float column;
+        float column;
+        float column;
+    } row[4] <read=Str("[%f, %f, %f, %f]", column[0], column[1], column[2], column[3]), optimize=false>;
 }
 matrix4x4;
 
@@ -95,7 +97,6 @@ enum <uint8> TransformationID
 
 enum <uint8> AxisID { X, Y, Z, W, UnknownAxis_4, UnknownAxis_5, UnknownAxis_6, UnknownAxis_7, UnknownAxis_8 };
 //enum <uint8> AxisID { X, Y, Z, W };
-
 
 // range
 typedef struct
@@ -315,16 +316,26 @@ uint32 murmurhash3_32(wstring key)
 typedef struct
 {
     WStringOffset  Name;
+    WStringOffset  Joint1;
+    WStringOffset  Joint2;
+    WStringOffset  UnknownName;
     matrix4x4      Matrix;
     hash           NameHash;
-    uint32         UnknownUInt32;
-    uint32         UnknownUInt32;
-    uint32         UnknownUInt32;
+    hash           Joint1Hash;
+    hash           Joint2Hash;
+    uint32         UnknownNameHash;
     float          UnknownFloat32;
     uint32         UnknownUInt32;
-    uint8          UnknownUInt8[8];
+    uint8          UnknownUInt8;
+    uint8          UnknownUInt8;
+    uint8          UnknownUInt8;
+    uint8          UnknownUInt8;
+    uint8          UnknownUInt8;
+    uint8          UnknownUInt8;
+    uint8          UnknownUInt8;
+    uint8          UnknownUInt8;
 } 
-ExtraJoint_v2 <read=Name.WString, optimize=false>;
+ExtraJoint_v2 <read=Name[0].WString, optimize=false>;
 
 // struct ExtraJoint_v1
 typedef struct
@@ -332,22 +343,10 @@ typedef struct
     WStringOffset  Name;
     WStringOffset  Joint1;
     WStringOffset  Joint2;
-    /*if (Version == 29)
-    {
-        WStringOffset  UnknownWString;
-        float          UnknownFloat32;
-        float          UnknownFloat32;
-        float          UnknownFloat32;
-        float          UnknownFloat32;
-        float          UnknownFloat32;
-        float          UnknownFloat32;
-        float          UnknownFloat32;
-        float          UnknownFloat32;
-    }*/
-        float          UnknownFloat32;
-        float          UnknownFloat32;
-        float          UnknownFloat32;
-        float          UnknownFloat32;
+    float          UnknownFloat32;
+    float          UnknownFloat32;
+    float          UnknownFloat32;
+    float          UnknownFloat32;
     if (Version > 12)
     { 
         float          UnknownFloat32;
@@ -355,18 +354,13 @@ typedef struct
         float          UnknownFloat32;
         float          UnknownFloat32;
     }
-        hash           NameHash;
-        hash           Joint1Hash;
-        hash           Joint2Hash;
-        float          UnknownFloat32;
-    /*if (Version == 29)
-    {
-        float          UnknownFloat32;
-        float          UnknownFloat32;
-    }*/
-        uint16         UnknownUInt16;
-        uint16         UnknownUInt16;
-        uint32         UnknownUInt32;
+    hash           NameHash;
+    hash           Joint1Hash;
+    hash           Joint2Hash;
+    float          UnknownFloat32;
+    uint16         UnknownUInt16;
+    uint16         UnknownUInt16;
+    uint32         UnknownUInt32;
 } 
 ExtraJoint_v1 <read=Name.WString, optimize=false>;
 
