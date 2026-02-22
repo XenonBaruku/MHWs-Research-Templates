@@ -621,7 +621,7 @@ typedef struct
 } 
 ConstraintList <read=Str("  < %u Constraint(s)... >  ",header.ConstraintCount)>;
 
-// struct Reference
+// struct Dependence
 typedef struct
 {
     uint64 Offset;
@@ -647,24 +647,24 @@ typedef struct
         FSeek(ReturnPos);
     }
 } 
-ReferenceInfo <read=readStr>;
+DependenceInfo <read=readStr>;
 
-// struct ReferenceList
+// struct DependenceList
 typedef struct
 {
-    //byte RefInput <name="Input here to add a new reference...", read="ObjectHash - SourceHash">;
+    //byte RefInput <name="Input here to add a new dependence...", read="ObjectHash - SourceHash">;
     //FSkip(-1);
-    ReferenceInfo Reference[header.ReferenceCount] <optimize=false>;
+    DependenceInfo Dependence[header.DependenceCount] <optimize=false>;
 } 
-ReferenceList <read=Str("  < %u Reference(s)... >  ", header.ReferenceCount)>;
+DependenceList <read=Str("  < %u Dependence(s)... >  ", header.DependenceCount)>;
 
-//struct ConstraintSettings
+//struct ObjectSettings
 typedef struct
 {
-    uint64 HashOffset;
+    uint64 HashOffset <format=hex>;
     local uint64 ReturnPos = FTell();
     FSeek(HashOffset);
-    hash   UnknownHash;
+    hash   ObjectNameHash;
     FSeek(ReturnPos);
     uint8  UnknownUInt8;
     uint8  UnknownUInt8;
@@ -672,16 +672,16 @@ typedef struct
     uint8  UnknownUInt8;
     DWORD  UnknownDWORD;
 } 
-ConstraintSettings;
+ObjectSettings;
 
-// struct ConstraintSettingList
+// struct ObjectSettingList
 typedef struct
 {
     //byte SetInput <name="Input here to add a new setting...">;
     //FSkip(-1);
-    ConstraintSettings ConstraintSetting[header.ConstraintSettingCount] <optimize=false>;
+    ObjectSettings ObjectSetting[header.ObjectSettingCount] <optimize=false>;
 } 
-ConstraintSettingList <read=Str("  < %u Setting(s)... >  ", header.ConstraintSettingCount)>;
+ObjectSettingList <read=Str("  < %u Setting(s)... >  ", header.ObjectSettingCount)>;
 
 
 // -- SECTION 1 --
@@ -881,14 +881,14 @@ typedef struct
     {
         byte   Signature[4];
         QWORD  UnknownQWORD;
-        uint64 InfoOffset;
+        uint64 InfoEntry;
         QWORD  UnknownQWORD;
-        uint64 FileEntry;
+        uint64 JCNSEntry;
+        QWORD  UnknownQWORD <comment="JCNS Count?">;
+        FSeek(InfoEntry);
         QWORD  UnknownQWORD;
-        FSeek(InfoOffset);
         QWORD  UnknownQWORD;
-        QWORD  UnknownQWORD;
-        FSeek(FileEntry);
+        FSeek(JCNSEntry);
         uint64 DataEntry;
         QWORD  UnknownQWORD;
     } Tags <comment="Usually the same in most files from diffent RE games.">;
@@ -898,7 +898,7 @@ typedef struct
     case 102: // MHWs (post-TU4)
         uint64 ExtraJointMapEntry <format=hex>;
         uint64 ConstraintInfoEntry <format=hex>;
-        uint64 ConstraintSettingEntry <format=hex>;
+        uint64 ObjectSettingEntry <format=hex>;
         uint64 RotExpressionInfoEntry <format=hex>;
         uint64 RotExpressionMapEntry <format=hex>;
         uint64 RotExpressionSourceHashIndicesEntry <format=hex>;
@@ -909,14 +909,14 @@ typedef struct
         uint64 MaterialConstraintInfoEntry <format=hex>;
         uint64 JointExportGraphInfoEntry <format=hex>;
         uint64 SectionTypeEntry <format=hex>;
-        uint64 ReferenceTableEntry <format=hex>;
+        uint64 DependenceTableEntry <format=hex>;
         uint64 HashTableEntry <format=hex>;
         uint64 SimpleConstraintHashTableEntry <format=hex>;
         int32  HashTableItemCount;
         uint16 ExtraJointCount;
         uint16 ConstraintCount;
-        uint16 ReferenceCount;
-        uint16 ConstraintSettingCount;
+        uint16 DependenceCount;
+        uint16 ObjectSettingCount;
         uint16 RotExpressionInfoCount;
         uint16 RotExpressionMapCount;
         uint16 SimpleConstraintCount;
@@ -934,7 +934,7 @@ typedef struct
     case 35: // PRAGMATA SKETCHBOOK - DEMO, MHS3Trial
         uint64 ExtraJointMapEntry <format=hex>;
         uint64 ConstraintInfoEntry <format=hex>;
-        uint64 ConstraintSettingEntry <format=hex>;
+        uint64 ObjectSettingEntry <format=hex>;
         uint64 RotExpressionInfoEntry <format=hex>;
         uint64 RotExpressionMapEntry <format=hex>;
         uint64 RotExpressionSourceHashIndicesEntry <format=hex>;
@@ -945,14 +945,13 @@ typedef struct
         uint64 MaterialConstraintInfoEntry <format=hex>;
         uint64 JointExportGraphInfoEntry <format=hex>;
         uint64 SectionTypeEntry <format=hex>;
-        uint64 ReferenceTableEntry <format=hex>;
+        uint64 DependenceTableEntry <format=hex>;
         uint64 HashTableEntry <format=hex>;
         int32  HashTableItemCount;
-        uint16 UnknownCount;
         uint16 ExtraJointCount;
         uint16 ConstraintCount;
-        uint16 ReferenceCount;
-        uint16 ConstraintSettingCount;
+        uint16 DependenceCount;
+        uint16 ObjectSettingCount;
         uint16 RotExpressionInfoCount;
         uint16 RotExpressionMapCount;
         uint16 SimpleConstraintCount;
@@ -970,7 +969,7 @@ typedef struct
     case 29: // MHWs (pre-TU4)
         uint64 ExtraJointMapEntry <format=hex>;
         uint64 ConstraintInfoEntry <format=hex>;
-        uint64 ConstraintSettingEntry <format=hex>;
+        uint64 ObjectSettingEntry <format=hex>;
         uint64 RotExpressionInfoEntry <format=hex>;
         uint64 RotExpressionMapEntry <format=hex>;
         uint64 SimpleConstraintTableEntry <format=hex>;
@@ -979,11 +978,11 @@ typedef struct
         uint64 MaterialConstraintInfoEntry <format=hex>;
         uint64 JointExportGraphInfoEntry <format=hex>;
         uint64 SectionTypeEntry <format=hex>;
-        uint64 ReferenceTableEntry <format=hex>;
+        uint64 DependenceTableEntry <format=hex>;
         uint16 ExtraJointCount;
         uint16 ConstraintCount;
-        uint16 ReferenceCount;
-        uint16 ConstraintSettingCount;
+        uint16 DependenceCount;
+        uint16 ObjectSettingCount;
         uint16 RotExpressionInfoCount;
         uint16 RotExpressionMapCount;
         uint16 SimpleConstraintCount;
@@ -1000,18 +999,18 @@ typedef struct
     case 22: // RE4R
         uint64 ExtraJointMapEntry <format=hex>;
         uint64 ConstraintInfoEntry <format=hex>;
-        uint64 ConstraintSettingEntry <format=hex>;
+        uint64 ObjectSettingEntry <format=hex>;
         uint64 RotExpressionInfoEntry <format=hex>;
         uint64 SimpleConstraintTableEntry <format=hex>;
         uint64 SimpleConstraintSourceTableEntry <format=hex>;
         uint64 AimConstraintTableEntry <format=hex>;
         uint64 MaterialConstraintInfoEntry <format=hex>;
         uint64 SectionTypeEntry <format=hex>;
-        uint64 ReferenceTableEntry <format=hex>;
+        uint64 DependenceTableEntry <format=hex>;
         uint16 ExtraJointCount;
         uint16 ConstraintCount;
-        uint16 ReferenceCount;
-        uint16 ConstraintSettingCount;
+        uint16 DependenceCount;
+        uint16 ObjectSettingCount;
         uint16 RotExpressionInfoCount;
         uint16 SimpleConstraintCount;
         uint16 SimpleConstraintSourceCount;
@@ -1026,17 +1025,17 @@ typedef struct
     case 21: // MHRS
         uint64 ExtraJointMapEntry <format=hex>;
         uint64 ConstraintInfoEntry <format=hex>;
-        uint64 ConstraintSettingEntry <format=hex>;
+        uint64 ObjectSettingEntry <format=hex>;
         uint64 RotExpressionInfoEntry <format=hex>;
         uint64 SimpleConstraintTableEntry <format=hex>;
         uint64 SimpleConstraintSourceTableEntry <format=hex>;
         uint64 AimConstraintTableEntry <format=hex>;
         uint64 SectionTypeEntry <format=hex>;
-        uint64 ReferenceTableEntry <format=hex>;
+        uint64 DependenceTableEntry <format=hex>;
         uint16 ExtraJointCount;
         uint16 ConstraintCount;
-        uint16 ReferenceCount;
-        uint16 ConstraintSettingCount;
+        uint16 DependenceCount;
+        uint16 ObjectSettingCount;
         uint16 RotExpressionInfoCount;
         uint16 SimpleConstraintCount;
         uint16 SimpleConstraintSourceCount;
@@ -1050,7 +1049,7 @@ typedef struct
     case 16: // RE8
         uint64 ExtraJointMapEntry <format=hex>;
         uint64 ConstraintInfoEntry <format=hex>;
-        uint64 ConstraintSettingEntry <format=hex>;
+        uint64 ObjectSettingEntry <format=hex>;
         uint64 RotExpressionInfoEntry <format=hex>;
         uint64 SimpleConstraintTableEntry <format=hex>;
         uint64 SimpleConstraintSourceTableEntry <format=hex>;
@@ -1058,7 +1057,7 @@ typedef struct
         uint64 SectionTypeEntry <format=hex>;
         uint16 ExtraJointCount;
         uint16 ConstraintCount;
-        uint16 ConstraintSettingCount;
+        uint16 ObjectSettingCount;
         uint16 RotExpressionInfoCount;
         uint16 SimpleConstraintCount;
         uint16 SimpleConstraintSourceCount;
@@ -1072,14 +1071,14 @@ typedef struct
     case 12: // RE3R
         uint64 ExtraJointMapEntry <format=hex>;
         uint64 ConstraintInfoEntry <format=hex>;
-        uint64 ConstraintSettingEntry <format=hex>;
+        uint64 ObjectSettingEntry <format=hex>;
         uint64 RotExpressionInfoEntry <format=hex>;
         uint64 SimpleConstraintTableEntry <format=hex>;
         uint64 SimpleConstraintSourceTableEntry <format=hex>;
         uint64 AimConstraintTableEntry <format=hex>;
         uint16 ExtraJointCount;
         uint16 ConstraintCount;
-        uint16 ConstraintSettingCount;
+        uint16 ObjectSettingCount;
         uint16 RotExpressionInfoCount;
         uint16 SimpleConstraintCount;
         uint16 SimpleConstraintSourceCount;
@@ -1089,13 +1088,13 @@ typedef struct
     case 11: // RE2R, DMC5
         uint64 ExtraJointMapEntry <format=hex>;
         uint64 ConstraintInfoEntry <format=hex>;
-        uint64 ConstraintSettingEntry <format=hex>;
+        uint64 ObjectSettingEntry <format=hex>;
         uint64 RotExpressionInfoEntry <format=hex>;
         uint64 SimpleConstraintTableEntry <format=hex>;
         uint64 SimpleConstraintSourceTableEntry <format=hex>;
         uint16 ExtraJointCount;
         uint16 ConstraintCount;
-        uint16 ConstraintSettingCount;
+        uint16 ObjectSettingCount;
         uint16 RotExpressionInfoCount;
         uint16 SimpleConstraintCount;
         uint16 SimpleConstraintSourceCount;
@@ -1104,7 +1103,7 @@ typedef struct
     default:
         uint64 ExtraJointMapEntry <format=hex>;
         uint64 ConstraintInfoEntry <format=hex>;
-        uint64 ConstraintSettingEntry <format=hex>;
+        uint64 ObjectSettingEntry <format=hex>;
         break;
     }
 } 
@@ -1124,15 +1123,15 @@ typedef struct
         FSeek(header.ConstraintInfoEntry);
         ConstraintList ConstraintSets;
     }
-    if (Version >= 21 && header.ReferenceCount > 0)
+    if (Version >= 21 && header.DependenceCount > 0)
     {
-        FSeek(header.ReferenceTableEntry);
-        ReferenceList References;
+        FSeek(header.DependenceTableEntry);
+        DependenceList Dependences;
     }
-    if (header.ConstraintSettingCount > 0)
+    if (header.ObjectSettingCount > 0)
     {
-        FSeek(header.ConstraintSettingEntry);
-        ConstraintSettingList Settings;
+        FSeek(header.ObjectSettingEntry);
+        ObjectSettingList Settings;
     }
 } 
 BODY0 <name="JCNS Section (Type 0: Transformation)", fgcolor=0xFFBD9A, open=true>;
