@@ -3,7 +3,7 @@
 //
 //      File: RE_Engine_JCNS.bt
 //   Authors: XenonValstrax
-//   Version: 0.65.7
+//   Version: 0.65.9
 //   Purpose: Parsing Joint Constraints (*.jcns) files from most RE Engine games
 //  Category: RE Engine
 // File Mask: *.jcns.*
@@ -49,6 +49,18 @@ typedef struct
     float axisW <name="W", fgcolor=0xEADE00, bgcolor=0x7E6A00>;
 } 
 vec4 <read=Str("[%f, %f, %f, %f]", axisX, axisY, axisZ, axisW), write=Vec4FWrite>;
+
+// matrix 3x3
+typedef struct
+{
+    struct
+    {
+        float column;
+        float column;
+        float column;
+    } row[3] <read=Str("[%f, %f, %f]", column[0], column[1], column[2]), optimize=false>;
+}
+matrix3x3;
 
 // matrix 4x4
 typedef struct
@@ -99,14 +111,22 @@ enum <uint8> TransformationID
 enum <uint8> AxisID { X, Y, Z, W, UnknownAxis_4, UnknownAxis_5, UnknownAxis_6, UnknownAxis_7, UnknownAxis_8 };
 //enum <uint8> AxisID { X, Y, Z, W };
 
-// range
+// range2
+typedef struct
+{
+    float min <name="Minimum">;
+    float max <name="Maximum">;
+} 
+range2 <read=Str("[%f, %f]", min, max), write=Range2FWrite>;
+
+// range3
 typedef struct
 {
     float min <name="Minimum">;
     float UnknownFloat32;
     float max <name="Maximum">;
 } 
-range <read=Str("[%.3f, %.3f, %.3f]", min, UnknownFloat32, max), write=RangeFWrite>;
+range3 <read=Str("[%f, %f, %f]", min, UnknownFloat32, max), write=Range3FWrite>;
 
 // WStringOffset
 typedef struct 
@@ -176,7 +196,12 @@ void AddCSource(wstring name)
     
 }
 
-void RangeFWrite( range &r, string s )
+void Range2FWrite( range3 &r, string s )
+{
+    SScanf( s, "[%f, %f]", r.min, r.max );
+}
+
+void Range3FWrite( range3 &r, string s )
 {
     SScanf( s, "[%f, %f, %f]", r.min, r.UnknownFloat32, r.max );
 }
@@ -313,65 +338,80 @@ uint32 murmurhash3_32(wstring key)
 
 //————————————————/* - STRUCTS - */————————————————//
 // -- SECTION 0 --
-// struct ExtraJoint_v2
+// struct ExtraJoint
 typedef struct
 {
-    WStringOffset  Name;
-    WStringOffset  Joint1;
-    WStringOffset  Joint2;
-    WStringOffset  UnknownName;
-    matrix4x4      Matrix;
-    hash           NameHash;
-    hash           Joint1Hash;
-    hash           Joint2Hash;
-    uint32         UnknownNameHash;
-    float          UnknownFloat32;
-    uint32         UnknownUInt32;
-    uint8          UnknownUInt8;
-    uint8          UnknownUInt8;
-    uint8          UnknownUInt8;
-    uint8          UnknownUInt8;
-    uint8          UnknownUInt8;
-    uint8          UnknownUInt8;
-    uint8          UnknownUInt8;
-    uint8          UnknownUInt8;
-} 
-ExtraJoint_v2 <read=Name[0].WString, optimize=false>;
-
-// struct ExtraJoint_v1
-typedef struct
-{
-    WStringOffset  Name;
-    WStringOffset  Joint1;
-    WStringOffset  Joint2;
-    float          UnknownFloat32;
-    float          UnknownFloat32;
-    float          UnknownFloat32;
-    float          UnknownFloat32;
-    if (Version > 12)
-    { 
-        float          UnknownFloat32;
-        float          UnknownFloat32;
-        float          UnknownFloat32;
-        float          UnknownFloat32;
+    WStringOffset      Name;
+    WStringOffset      Joint;
+    WStringOffset      PreviousJoint;
+    if (Version >= 24)
+    {
+        WStringOffset  UnknownWString;
     }
-    hash           NameHash;
-    hash           Joint1Hash;
-    hash           Joint2Hash;
-    float          UnknownFloat32;
-    uint16         UnknownUInt16;
-    uint16         UnknownUInt16;
-    uint32         UnknownUInt32;
+    range2             FromRange;
+    range2             ToRange;
+    if (Version > 12)
+    {
+        float          UnknownFloat;
+        float          UnknownFloat;
+        float          UnknownFloat;
+        float          UnknownFloat;
+    }
+    if (Version >= 24)
+    {
+        float          UnknownFloat;
+        float          UnknownFloat;
+        float          UnknownFloat;
+        float          UnknownFloat;
+        float          UnknownFloat;
+        float          UnknownFloat;
+        float          UnknownFloat;
+        float          UnknownFloat;
+    }
+    /*
+    if (Version >= 24)
+    { 
+        matrix3x3      UnknownMatrix;
+        vec3           UnknownVector;
+    }
+    else if (Version > 12)
+    {
+        vec4           UnknownVector;
+    }
+    */
+    hash               NameHash;
+    hash               JointHash;
+    hash               PreviousJointHash;
+    if (Version >= 24)
+    { 
+        hash           UnknownWStringHash;
+    }
+    float              Influence;
+    if (Version >= 24)
+    { 
+        uint32         UnknownUInt32;
+    }
+    uint8              UnknownUInt8;
+    uint8              UnknownUInt8;
+    uint8              UnknownUInt8;
+    uint8              UnknownUInt8;
+    uint8              UnknownUInt8;
+    uint8              UnknownUInt8;
+    uint8              UnknownUInt8;
+    uint8              UnknownUInt8;
 } 
-ExtraJoint_v1 <read=Name.WString, optimize=false>;
+ExtraJoint <read=Str("%s : %s[%Xh] -- %s", Name.WString, Joint.WString, JointHash, PreviousJoint.WString), optimize=false>;
 
 // struct ExtraJointList
 typedef struct
 {
+    ExtraJoint JointInfo[header.ExtraJointCount];
+    /*
     if (Version >= 24)
     { ExtraJoint_v2 UnknownJointInfo[header.ExtraJointCount]; }
     else
     { ExtraJoint_v1 UnknownJointInfo[header.ExtraJointCount]; }
+    */
 } 
 ExtraJointList <read=Str("  < %u Extra Joint(s)... >  ", header.ExtraJointCount), fgcolor=0xDCED7C>;
 
@@ -415,8 +455,8 @@ typedef struct
     byte             UnknownUInt8;
     byte             UnknownUInt8;
     byte             UnknownUInt8;
-    range            MapFromRange <name="MapFrom: Range">;
-    range            MapToRange <name="MapTo: Range">;
+    range3            MapFromRange <name="MapFrom: Range">;
+    range3            MapToRange <name="MapTo: Range">;
     vec4             UnknownVector;
     
     returnPos = FTell();
@@ -450,8 +490,8 @@ typedef struct
 {
     WStringOffset    SourceName <name="Source: Name">;
     hash             SourceHash <name="Source: Hash", comment="Hash here is read from file directly.">;
-    range            MapFromRange <name="MapFrom: Range">;
-    range            MapToRange <name="MapTo: Range">;
+    range3            MapFromRange <name="MapFrom: Range">;
+    range3            MapToRange <name="MapTo: Range">;
     byte             UnknownUInt8;
     byte             UnknownUInt8;
     AxisID           SourceAxis;
@@ -509,28 +549,28 @@ typedef struct
         FSeek(Offset);
         struct 
         {
-            float    UnknwonFloat32;
-            float    UnknwonFloat32;
+            float    UnknownFloat32;
+            float    UnknownFloat32;
             if (Version >= 24)
             {
-                float    UnknwonFloat32;
-                float    UnknwonFloat32;
-                float    UnknwonFloat32;
+                float    UnknownFloat32;
+                float    UnknownFloat32;
+                float    UnknownFloat32;
             }
             uint8    UnknownUInt8;
-            uint8    UnknownUInt8 <comment="Index?">;
+            uint8    ExtraJointIndex;
             uint8    UnknownUInt8;
             uint8    UnknownUInt8;
             if (Version >= 29)
             {
-                float    _UnknwonFloat32;
-                float    _UnknwonFloat32;
+                float    UnknownFloat32;
+                float    UnknownFloat32;
             }
             local string readStr;
-            if (Version >= 29)
-            { SPrintf(readStr, "%u : (%f, %f)", UnknownUInt8[1], _UnknwonFloat32[0], _UnknwonFloat32[1]); }
+            if (Version >= 21)
+            { SPrintf(readStr, "(%u) %s : [%f, %f]", ExtraJointIndex, parentof(parentof(parentof(parentof(this)))).ExtraJoints.JointInfo[ExtraJointIndex].Name.WString, UnknownFloat32[3], UnknownFloat32[4]); }
             else
-            { SPrintf(readStr, "%u : %f", UnknownUInt8[1], UnknwonFloat32[4]); }
+            { SPrintf(readStr, "(%u) %s : [%f, %f]", ExtraJointIndex, parentof(parentof(parentof(parentof(this)))).ExtraJoints.JointInfo[ExtraJointIndex].Name.WString, UnknownFloat32[0], UnknownFloat32[1]); }
         }
         ExtraInfo[Count] <read=readStr, optimize=false>;
     }
