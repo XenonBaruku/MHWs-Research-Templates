@@ -22,6 +22,7 @@
 //     16       -  Resident Evil 8
 //     21       -  Monster Hunter Rise Sunbreak
 //     22       -  Resident Evil 4 Remake / Street Fighter 6
+//     24       -  Dragon's Dogma 2
 //     29, 102  -  Monster Hunter Wilds
 //     35       -  PRAGMATA SKETCHBOOK DEMO / Monster Hunter Stories 3 Trial
 
@@ -367,7 +368,7 @@ ExtraJoint_v1 <read=Name.WString, optimize=false>;
 // struct ExtraJointList
 typedef struct
 {
-    if (Version >= 29)
+    if (Version >= 24)
     { ExtraJoint_v2 UnknownJointInfo[header.ExtraJointCount]; }
     else
     { ExtraJoint_v1 UnknownJointInfo[header.ExtraJointCount]; }
@@ -510,24 +511,28 @@ typedef struct
         {
             float    UnknwonFloat32;
             float    UnknwonFloat32;
-            if (Version == 29)
+            if (Version >= 24)
             {
                 float    UnknwonFloat32;
                 float    UnknwonFloat32;
                 float    UnknwonFloat32;
             }
-            uint8    UnknownUInt8 <comment="Usually 3">;
-            //AxisID   Axis  <comment="Not sure">;
-            uint8    UnknownUInt8 <comment="Axis?">;
+            uint8    UnknownUInt8;
+            uint8    UnknownUInt8 <comment="Index?">;
             uint8    UnknownUInt8;
             uint8    UnknownUInt8;
-            if (Version == 29)
+            if (Version >= 29)
             {
                 float    _UnknwonFloat32;
                 float    _UnknwonFloat32;
             }
-        } //ExtraInfo[Count] <read=Str("%s : (%f, %f)", EnumToString(Axis), _UnknwonFloat32[0], _UnknwonFloat32[1]), optimize=false>;
-        ExtraInfo[Count] <read=Str("%u : (%f, %f)", UnknownUInt8[1], _UnknwonFloat32[0], _UnknwonFloat32[1]), optimize=false>;
+            local string readStr;
+            if (Version >= 29)
+            { SPrintf(readStr, "%u : (%f, %f)", UnknownUInt8[1], _UnknwonFloat32[0], _UnknwonFloat32[1]); }
+            else
+            { SPrintf(readStr, "%u : %f", UnknownUInt8[1], UnknwonFloat32[4]); }
+        }
+        ExtraInfo[Count] <read=readStr, optimize=false>;
     }
     FSeek(ReturnPos);
 }
@@ -664,7 +669,7 @@ typedef struct
     uint64 HashOffset <format=hex>;
     local uint64 ReturnPos = FTell();
     FSeek(HashOffset);
-    hash   ObjectNameHash;
+    hash   ObjectNameHash <comment="(According to chd000_00.jcns from RE4R) looks like name of BlendShape?">;
     FSeek(ReturnPos);
     uint8  UnknownUInt8;
     uint8  UnknownUInt8;
@@ -996,7 +1001,33 @@ typedef struct
         FSeek(returnPos);
         byte UnknownBytes[11];
         break;
-    case 22: // RE4R
+    case 24: // DD2
+        uint64 ExtraJointMapEntry <format=hex>;
+        uint64 ConstraintInfoEntry <format=hex>;
+        uint64 ObjectSettingEntry <format=hex>;
+        uint64 RotExpressionInfoEntry <format=hex>;
+        uint64 SimpleConstraintTableEntry <format=hex>;
+        uint64 SimpleConstraintSourceTableEntry <format=hex>;
+        uint64 AimConstraintTableEntry <format=hex>;
+        uint64 MaterialConstraintInfoEntry <format=hex>;
+        uint64 SectionTypeEntry <format=hex>;
+        uint64 DependenceTableEntry <format=hex>;
+        uint16 ExtraJointCount;
+        uint16 ConstraintCount;
+        uint16 DependenceCount;
+        uint16 ObjectSettingCount;
+        uint16 RotExpressionInfoCount;
+        uint16 SimpleConstraintCount;
+        uint16 SimpleConstraintSourceCount;
+        uint16 AimConstraintCount;
+        uint16 MaterialConstraintInfoCount;
+        byte   UnknownBytes[14];
+        local uint64 returnPos = FTell();
+        FSeek(SectionTypeEntry);
+        uint32 SectionType[5];
+        FSeek(returnPos);
+        break;
+    case 22: // RE4R, SF6
         uint64 ExtraJointMapEntry <format=hex>;
         uint64 ConstraintInfoEntry <format=hex>;
         uint64 ObjectSettingEntry <format=hex>;
@@ -1073,16 +1104,16 @@ typedef struct
         uint64 ConstraintInfoEntry <format=hex>;
         uint64 ObjectSettingEntry <format=hex>;
         uint64 RotExpressionInfoEntry <format=hex>;
+        uint64 RotExpressionMapEntry <format=hex>;
         uint64 SimpleConstraintTableEntry <format=hex>;
         uint64 SimpleConstraintSourceTableEntry <format=hex>;
-        uint64 AimConstraintTableEntry <format=hex>;
         uint16 ExtraJointCount;
         uint16 ConstraintCount;
         uint16 ObjectSettingCount;
         uint16 RotExpressionInfoCount;
+        uint16 RotExpressionMapCount;
         uint16 SimpleConstraintCount;
         uint16 SimpleConstraintSourceCount;
-        uint16 AimConstraintCount;
         byte   UnknownBytes[10];
         break;
     case 11: // RE2R, DMC5
@@ -1090,14 +1121,14 @@ typedef struct
         uint64 ConstraintInfoEntry <format=hex>;
         uint64 ObjectSettingEntry <format=hex>;
         uint64 RotExpressionInfoEntry <format=hex>;
+        uint64 RotExpressionMapEntry <format=hex>;
         uint64 SimpleConstraintTableEntry <format=hex>;
-        uint64 SimpleConstraintSourceTableEntry <format=hex>;
         uint16 ExtraJointCount;
         uint16 ConstraintCount;
         uint16 ObjectSettingCount;
         uint16 RotExpressionInfoCount;
+        uint16 RotExpressionMapCount;
         uint16 SimpleConstraintCount;
-        uint16 SimpleConstraintSourceCount;
         byte   UnknownBytes[4];
         break;
     default:
@@ -1328,10 +1359,56 @@ switch (Version)
             BODY5 body5;
         }
         break;
+    case 24: // DD2
+        if (header.ExtraJointCount > 0 || header.ConstraintCount > 0)
+        {
+            BODY0 body0;
+        }
+        if (header.RotExpressionInfoCount > 0)
+        {
+            FSeek(header.RotExpressionInfoEntry);
+            BODY1 body1;
+        }
+        if (header.SimpleConstraintCount > 0)
+        {
+            FSeek(header.SimpleConstraintTableEntry);
+            BODY2 body2;
+        }
+        if (header.AimConstraintCount > 0)
+        {
+            FSeek(header.AimConstraintTableEntry);
+            BODY3 body3;
+        }
+        if (header.MaterialConstraintInfoCount > 0)
+        {
+            FSeek(header.MaterialConstraintInfoEntry);
+            BODY4 body4;
+        }
+        break;
     case 22: // RE4R
         if (header.ExtraJointCount > 0 || header.ConstraintCount > 0)
         {
             BODY0 body0;
+        }
+        if (header.RotExpressionInfoCount > 0)
+        {
+            FSeek(header.RotExpressionInfoEntry);
+            BODY1 body1;
+        }
+        if (header.SimpleConstraintCount > 0)
+        {
+            FSeek(header.SimpleConstraintTableEntry);
+            BODY2 body2;
+        }
+        if (header.AimConstraintCount > 0)
+        {
+            FSeek(header.AimConstraintTableEntry);
+            BODY3 body3;
+        }
+        if (header.MaterialConstraintInfoCount > 0)
+        {
+            FSeek(header.MaterialConstraintInfoEntry);
+            BODY4 body4;
         }
         break;
     case 21: // MHRS
@@ -1339,11 +1416,41 @@ switch (Version)
         {
             BODY0 body0;
         }
+        if (header.RotExpressionInfoCount > 0)
+        {
+            FSeek(header.RotExpressionInfoEntry);
+            BODY1 body1;
+        }
+        if (header.SimpleConstraintCount > 0)
+        {
+            FSeek(header.SimpleConstraintTableEntry);
+            BODY2 body2;
+        }
+        if (header.AimConstraintCount > 0)
+        {
+            FSeek(header.AimConstraintTableEntry);
+            BODY3 body3;
+        }
         break;
     case 16: // RE8
         if (header.ExtraJointCount > 0 || header.ConstraintCount > 0)
         {
             BODY0 body0;
+        }
+        if (header.RotExpressionInfoCount > 0)
+        {
+            FSeek(header.RotExpressionInfoEntry);
+            BODY1 body1;
+        }
+        if (header.SimpleConstraintCount > 0)
+        {
+            FSeek(header.SimpleConstraintTableEntry);
+            BODY2 body2;
+        }
+        if (header.AimConstraintCount > 0)
+        {
+            FSeek(header.AimConstraintTableEntry);
+            BODY3 body3;
         }
         break;
     case 12: // RE3R
@@ -1351,11 +1458,31 @@ switch (Version)
         {
             BODY0 body0;
         }
+        if (header.RotExpressionInfoCount > 0)
+        {
+            FSeek(header.RotExpressionInfoEntry);
+            BODY1 body1;
+        }
+        if (header.SimpleConstraintCount > 0)
+        {
+            FSeek(header.SimpleConstraintTableEntry);
+            BODY2 body2;
+        }
         break;
     case 11: // RE2R, DMC5
         if (header.ExtraJointCount > 0 || header.ConstraintCount > 0)
         {
             BODY0 body0;
+        }
+        if (header.RotExpressionInfoCount > 0)
+        {
+            FSeek(header.RotExpressionInfoEntry);
+            BODY1 body1;
+        }
+        if (header.SimpleConstraintCount > 0)
+        {
+            FSeek(header.SimpleConstraintTableEntry);
+            BODY2 body2;
         }
         break;
 }
