@@ -23,8 +23,9 @@
 //     21       -  Monster Hunter Rise Sunbreak
 //     22       -  Resident Evil 4 Remake / Street Fighter 6
 //     24       -  Dragon's Dogma 2
-//     29, 102  -  Monster Hunter Wilds
+//     29       -  Monster Hunter Wilds (pre-TU4)
 //     35       -  PRAGMATA SKETCHBOOK DEMO / Monster Hunter Stories 3 Trial
+//     102      -  Monster Hunter Wilds (post-TU4) / 
 
 LittleEndian();
 SetUnoptimizedArraysCollapsible(0);
@@ -338,6 +339,7 @@ uint32 murmurhash3_32(wstring key)
 
 //————————————————/* - STRUCTS - */————————————————//
 // -- SECTION 0 --
+// struct ConeDriver_v2
 typedef struct
 {
     WStringOffset  Name;
@@ -663,7 +665,7 @@ typedef struct
 } 
 ConstraintList <read=Str("  < %u Constraint(s)... >  ",header.ConstraintCount)>;
 
-// struct Dependence
+// struct Dependency
 typedef struct
 {
     uint64 Offset;
@@ -689,16 +691,16 @@ typedef struct
         FSeek(ReturnPos);
     }
 } 
-DependenceInfo <read=readStr>;
+DependencyInfo <read=readStr>;
 
-// struct DependenceList
+// struct DependencyList
 typedef struct
 {
     //byte RefInput <name="Input here to add a new dependence...", read="ObjectHash - SourceHash">;
     //FSkip(-1);
-    DependenceInfo Dependence[header.DependenceCount] <optimize=false>;
+    DependencyInfo Dependency[header.DependencyCount] <optimize=false>;
 } 
-DependenceList <read=Str("  < %u Dependence(s)... >  ", header.DependenceCount)>;
+DependencyList <read=Str("  < %u Dependencie(s)... >  ", header.DependencyCount)>;
 
 //struct ObjectSettings
 typedef struct
@@ -951,13 +953,13 @@ typedef struct
         uint64 MaterialConstraintInfoEntry <format=hex>;
         uint64 JointExportGraphInfoEntry <format=hex>;
         uint64 SectionTypeEntry <format=hex>;
-        uint64 DependenceTableEntry <format=hex>;
+        uint64 DependencyTableEntry <format=hex>;
         uint64 HashTableEntry <format=hex>;
         uint64 SimpleConstraintHashTableEntry <format=hex>;
         int32  HashTableItemCount;
         uint16 ConeDriverCount;
         uint16 ConstraintCount;
-        uint16 DependenceCount;
+        uint16 DependencyCount;
         uint16 ObjectSettingCount;
         uint16 RotExpressionInfoCount;
         uint16 RotExpressionMapCount;
@@ -987,12 +989,12 @@ typedef struct
         uint64 MaterialConstraintInfoEntry <format=hex>;
         uint64 JointExportGraphInfoEntry <format=hex>;
         uint64 SectionTypeEntry <format=hex>;
-        uint64 DependenceTableEntry <format=hex>;
+        uint64 DependencyTableEntry <format=hex>;
         uint64 HashTableEntry <format=hex>;
         int32  HashTableItemCount;
         uint16 ConeDriverCount;
         uint16 ConstraintCount;
-        uint16 DependenceCount;
+        uint16 DependencyCount;
         uint16 ObjectSettingCount;
         uint16 RotExpressionInfoCount;
         uint16 RotExpressionMapCount;
@@ -1020,10 +1022,10 @@ typedef struct
         uint64 MaterialConstraintInfoEntry <format=hex>;
         uint64 JointExportGraphInfoEntry <format=hex>;
         uint64 SectionTypeEntry <format=hex>;
-        uint64 DependenceTableEntry <format=hex>;
+        uint64 DependencyTableEntry <format=hex>;
         uint16 ConeDriverCount;
         uint16 ConstraintCount;
-        uint16 DependenceCount;
+        uint16 DependencyCount;
         uint16 ObjectSettingCount;
         uint16 RotExpressionInfoCount;
         uint16 RotExpressionMapCount;
@@ -1048,10 +1050,10 @@ typedef struct
         uint64 AimConstraintTableEntry <format=hex>;
         uint64 MaterialConstraintInfoEntry <format=hex>;
         uint64 SectionTypeEntry <format=hex>;
-        uint64 DependenceTableEntry <format=hex>;
+        uint64 DependencyTableEntry <format=hex>;
         uint16 ConeDriverCount;
         uint16 ConstraintCount;
-        uint16 DependenceCount;
+        uint16 DependencyCount;
         uint16 ObjectSettingCount;
         uint16 RotExpressionInfoCount;
         uint16 SimpleConstraintCount;
@@ -1074,10 +1076,10 @@ typedef struct
         uint64 AimConstraintTableEntry <format=hex>;
         uint64 MaterialConstraintInfoEntry <format=hex>;
         uint64 SectionTypeEntry <format=hex>;
-        uint64 DependenceTableEntry <format=hex>;
+        uint64 DependencyTableEntry <format=hex>;
         uint16 ConeDriverCount;
         uint16 ConstraintCount;
-        uint16 DependenceCount;
+        uint16 DependencyCount;
         uint16 ObjectSettingCount;
         uint16 RotExpressionInfoCount;
         uint16 SimpleConstraintCount;
@@ -1099,10 +1101,10 @@ typedef struct
         uint64 SimpleConstraintSourceTableEntry <format=hex>;
         uint64 AimConstraintTableEntry <format=hex>;
         uint64 SectionTypeEntry <format=hex>;
-        uint64 DependenceTableEntry <format=hex>;
+        uint64 DependencyTableEntry <format=hex>;
         uint16 ConeDriverCount;
         uint16 ConstraintCount;
-        uint16 DependenceCount;
+        uint16 DependencyCount;
         uint16 ObjectSettingCount;
         uint16 RotExpressionInfoCount;
         uint16 SimpleConstraintCount;
@@ -1189,12 +1191,12 @@ typedef struct
     if (header.ConstraintCount > 0)
     {
         FSeek(header.ConstraintInfoEntry);
-        ConstraintList ConstraintSets;
+        ConstraintList Constraints;
     }
-    if (Version >= 21 && header.DependenceCount > 0)
+    if (Version >= 21 && header.DependencyCount > 0)
     {
-        FSeek(header.DependenceTableEntry);
-        DependenceList Dependences;
+        FSeek(header.DependencyTableEntry);
+        DependencyList Dependencies;
     }
     if (header.ObjectSettingCount > 0)
     {
