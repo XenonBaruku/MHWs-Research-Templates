@@ -24,8 +24,8 @@
 //     22       -  Resident Evil 4 Remake / Street Fighter 6
 //     24       -  Dragon's Dogma 2
 //     29       -  Monster Hunter Wilds (pre-TU4)
-//     35       -  PRAGMATA SKETCHBOOK DEMO / Monster Hunter Stories 3 Trial
-//     102      -  Monster Hunter Wilds (post-TU4) / 
+//     35       -  Resident Evil 9 / PRAGMATA SKETCHBOOK DEMO / Monster Hunter Stories 3 Trial
+//     102      -  Monster Hunter Wilds (post-TU4)
 
 LittleEndian();
 SetUnoptimizedArraysCollapsible(0);
@@ -975,7 +975,7 @@ typedef struct
         uint32 SectionType[SectionCount];
         FSeek(returnPos);
         break;
-    case 35: // PRAGMATA SKETCHBOOK - DEMO, MHS3Trial
+    case 35: // RE9, PRAGMATA SKETCHBOOK - DEMO, MHS3Trial
         uint64 ConeDriverTableEntry <format=hex>;
         uint64 ConstraintInfoEntry <format=hex>;
         uint64 ObjectSettingEntry <format=hex>;
@@ -1330,7 +1330,7 @@ switch (Version)
             HASHTBL HashTable;
         }
         break;
-    case 35: // PRAGMATA SKETCHBOOK - DEMO
+    case 35: // RE9, PRAGMATA SKETCHBOOK - DEMO, MHS3Trial,
         if (header.ConeDriverCount > 0 || header.ConstraintCount > 0)
         {
             FSeek(header.ConeDriverTableEntry);
