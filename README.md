@@ -5,4 +5,4 @@
 ## Files ##
  * **MHWs_gpuc.bt** – GPU Cloth (*.gpuc) (Not completed yet! Credit [alphaZomega](https://github.com/alphazolam) for [RE8_GPUC.bt](https://github.com/alphazolam/RE-Engine-010-Templates/blob/main/RE8_GPUC.bt) )
  * **MHWs_sfur.bt** – ShellFur (*.sfur)
- * **RE_engine_JCNS.bt** – Joint Constraints (*.jcns)  (Supported games: RE2R, DMC5, RE3R, RE8, MHRS, RE4R, SF6, DD2, MHWs, PRAGMATA DEMO, MHS3Trial)
+ * **RE_engine_JCNS.bt** – Joint Constraints (*.jcns)  (Supported games: RE2R, DMC5, RE3R, RE8, MHRS, RE4R, SF6, DD2, MHWs, RE9, PRAGMATA DEMO, MHS3Trial)
