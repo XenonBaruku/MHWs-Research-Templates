@@ -690,7 +690,7 @@ RotExpressionInfo <read=Str("%08Xh << %08Xh", JointHash, SourceJointHash)>;
 
 
 // -- SECTION 2 --
-// struct ConstraintSimpleSrc
+// struct ConstraintSkinSrc
 typedef struct
 {
     
@@ -711,31 +711,38 @@ typedef struct
     local uint returnPos = FTell();
     FSeek(SourceOffset);
     struct 
-    { 
-        local string readStr;
+    {
         if (Version >= 35)
         { 
             uint32  SourceInfoIndex; 
-            local int32 SourceHashIndex = ReadInt(header.SimpleConstraintSourceTableEntry + 8 * SourceInfoIndex);
+            local int32 SourceHashIndex = ReadInt(header.SkinConstraintSourceTableEntry + 8 * SourceInfoIndex);
             local hash SourceHash = ReadUInt(header.HashTableEntry + 4 * SourceHashIndex);
         }
-        else 
+        else if (Version >= 29)
         { 
             int32  SourceHashIndex; 
-            local hash SourceHash = ReadUInt(header.SimpleConstraintSourceTableEntry + 4 * SourceHashIndex);
+            local hash SourceHash = ReadUInt(header.SkinConstraintSourceTableEntry + 4 * SourceHashIndex);
         }
-        
+        else
+        {
+            hash SourceHash;
+        }
         float Weight; 
-    } Source[SourceCount] <read=Str("Index: %u Weight: %f", SourceHashIndex, Weight), optimize=false>;
+        
+        local string readStr;
+        if (Version >= 29)
+        { SPrintf(readStr, "Index: %u Weight: %f", SourceHashIndex, Weight); }
+        else
+        { SPrintf(readStr, "Hash: %Xh Weight: %f", SourceHash, Weight); }
+    } Source[SourceCount] <read=readStr, optimize=false>;
     FSeek(returnPos);
 } 
-ConstraintSimpleSrc;
+ConstraintSkinSrc;
 
-// struct ConstraintSimple
+// struct ConstraintSkin
 typedef struct
 {
-    local string readStr;
-    ConstraintSimpleSrc  SourceList;
+    ConstraintSkinSrc  SourceList;
     local uint64 returnPos;
     if (Version >= 35)
     {
@@ -744,15 +751,14 @@ typedef struct
         FSeek(header.HashTableEntry + ObjectHashIndex * 4);
         hash    ObjectHash;
         FSeek(returnPos);
-        //SPrintf(readStr, "HashIndex: %u; Hash: %X <%u Source(s)>", ObjectHashIndex, HashList.Hash[ObjectHashIndex], SourceList.SourceCount);
     }
     else
     { 
         hash  ObjectHash; 
-        //SPrintf(readStr, "Hash: %X <%u Source(s)>", ObjectHash, SourceList.SourceCount);
     }
-    FSkip(4);
+    uint32 SourceCount;
     
+    local string readStr;
     if (SourceList.SourceCount > 1)
     {
         SPrintf(readStr, "%08Xh << %08Xh...<%u more>", ObjectHash, SourceList.Source[0].SourceHash, SourceList.SourceCount - 1);
@@ -762,9 +768,9 @@ typedef struct
         SPrintf(readStr, "%08Xh << %08Xh", ObjectHash, SourceList.Source[0].SourceHash);
     }
 } 
-ConstraintSimple <read=readStr>;
+ConstraintSkin <read=readStr>;
 
-// struct ConstraintSimpleSrcInfo
+// struct ConstraintSkinSrcInfo
 typedef struct
 {
     local uint64 returnPos;
@@ -775,7 +781,7 @@ typedef struct
     FSeek(returnPos);
     uint32 UnknownUInt32;
 } 
-ConstraintSimpleSrcInfo <read=Str("HashIndex: %u; Hash: %08Xh", SourceHashIndex, SourceHash), optimize=false>;
+ConstraintSkinSrcInfo <read=Str("HashIndex: %u; Hash: %08Xh", SourceHashIndex, SourceHash), optimize=false>;
 
 
 // -- SECTION 3 --
@@ -888,15 +894,15 @@ typedef struct
         uint64 RotExpressionMapEntry <format=hex>;
         uint64 RotExpressionSourceHashIndicesEntry <format=hex>;
         uint64 RotExpressionHashIndicesEntry <format=hex>;
-        uint64 SimpleConstraintTableEntry <format=hex>;
-        uint64 SimpleConstraintSourceTableEntry <format=hex>;
+        uint64 SkinConstraintTableEntry <format=hex>;
+        uint64 SkinConstraintSourceTableEntry <format=hex>;
         uint64 AimConstraintTableEntry <format=hex>;
         uint64 MaterialConstraintInfoEntry <format=hex>;
         uint64 JointExportGraphInfoEntry <format=hex>;
         uint64 SectionTableEntry <format=hex>;
         uint64 DependencyTableEntry <format=hex>;
         uint64 HashTableEntry <format=hex>;
-        uint64 SimpleConstraintHashTableEntry <format=hex>;
+        uint64 SkinConstraintHashTableEntry <format=hex>;
         int32  HashTableItemCount;
         uint16 ConeDriverCount;
         uint16 ConstraintCount;
@@ -904,9 +910,9 @@ typedef struct
         uint16 ObjectSettingCount;
         uint16 RotExpressionInfoCount;
         uint16 RotExpressionMapCount;
-        uint16 SimpleConstraintCount;
-        uint16 SimpleConstraintHashTableItemCount;
-        uint16 SimpleConstraintSourceCount;
+        uint16 SkinConstraintCount;
+        uint16 SkinConstraintHashTableItemCount;
+        uint16 SkinConstraintSourceCount;
         uint16 AimConstraintCount;
         uint16 MaterialConstraintInfoCount;
         uint8 SectionCount;
@@ -920,8 +926,8 @@ typedef struct
         uint64 RotExpressionMapEntry <format=hex>;
         uint64 RotExpressionSourceHashIndicesEntry <format=hex>;
         uint64 RotExpressionHashIndicesEntry <format=hex>;
-        uint64 SimpleConstraintTableEntry <format=hex>;
-        uint64 SimpleConstraintSourceTableEntry <format=hex>;
+        uint64 SkinConstraintTableEntry <format=hex>;
+        uint64 SkinConstraintSourceTableEntry <format=hex>;
         uint64 AimConstraintTableEntry <format=hex>;
         uint64 MaterialConstraintInfoEntry <format=hex>;
         uint64 JointExportGraphInfoEntry <format=hex>;
@@ -935,9 +941,9 @@ typedef struct
         uint16 ObjectSettingCount;
         uint16 RotExpressionInfoCount;
         uint16 RotExpressionMapCount;
-        uint16 SimpleConstraintCount;
-        uint16 SimpleConstraintSourceCount;
-        uint16 SimpleConstraintHashTableItemCount;
+        uint16 SkinConstraintCount;
+        uint16 SkinConstraintSourceCount;
+        uint16 SkinConstraintHashTableItemCount;
         uint16 AimConstraintCount;
         uint16 MaterialConstraintInfoCount;
         uint8  SectionCount;
@@ -949,8 +955,8 @@ typedef struct
         uint64 ObjectSettingEntry <format=hex>;
         uint64 RotExpressionInfoEntry <format=hex>;
         uint64 RotExpressionMapEntry <format=hex>;
-        uint64 SimpleConstraintTableEntry <format=hex>;
-        uint64 SimpleConstraintSourceTableEntry <format=hex>;
+        uint64 SkinConstraintTableEntry <format=hex>;
+        uint64 SkinConstraintSourceTableEntry <format=hex>;
         uint64 AimConstraintTableEntry <format=hex>;
         uint64 MaterialConstraintInfoEntry <format=hex>;
         uint64 JointExportGraphInfoEntry <format=hex>;
@@ -962,8 +968,8 @@ typedef struct
         uint16 ObjectSettingCount;
         uint16 RotExpressionInfoCount;
         uint16 RotExpressionMapCount;
-        uint16 SimpleConstraintCount;
-        uint16 SimpleConstraintSourceCount;
+        uint16 SkinConstraintCount;
+        uint16 SkinConstraintSourceCount;
         uint16 AimConstraintCount;
         uint16 MaterialConstraintInfoCount;
         uint8  SectionCount;
@@ -974,8 +980,8 @@ typedef struct
         uint64 ConstraintInfoEntry <format=hex>;
         uint64 ObjectSettingEntry <format=hex>;
         uint64 RotExpressionInfoEntry <format=hex>;
-        uint64 SimpleConstraintTableEntry <format=hex>;
-        uint64 SimpleConstraintSourceTableEntry <format=hex>;
+        uint64 RotExpressionMapEntry <format=hex>;
+        uint64 SkinConstraintTableEntry <format=hex>;
         uint64 AimConstraintTableEntry <format=hex>;
         uint64 MaterialConstraintInfoEntry <format=hex>;
         uint64 SectionTableEntry <format=hex>;
@@ -985,8 +991,8 @@ typedef struct
         uint16 DependencyCount;
         uint16 ObjectSettingCount;
         uint16 RotExpressionInfoCount;
-        uint16 SimpleConstraintCount;
-        uint16 SimpleConstraintSourceCount;
+        uint16 RotExpressionMapCount;
+        uint16 SkinConstraintCount;
         uint16 AimConstraintCount;
         uint16 MaterialConstraintInfoCount;
         byte   UnknownBytes[14];
@@ -996,8 +1002,8 @@ typedef struct
         uint64 ConstraintInfoEntry <format=hex>;
         uint64 ObjectSettingEntry <format=hex>;
         uint64 RotExpressionInfoEntry <format=hex>;
-        uint64 SimpleConstraintTableEntry <format=hex>;
-        uint64 SimpleConstraintSourceTableEntry <format=hex>;
+        uint64 RotExpressionMapEntry <format=hex>;
+        uint64 SkinConstraintTableEntry <format=hex>;
         uint64 AimConstraintTableEntry <format=hex>;
         uint64 MaterialConstraintInfoEntry <format=hex>;
         uint64 SectionTableEntry <format=hex>;
@@ -1007,8 +1013,8 @@ typedef struct
         uint16 DependencyCount;
         uint16 ObjectSettingCount;
         uint16 RotExpressionInfoCount;
-        uint16 SimpleConstraintCount;
-        uint16 SimpleConstraintSourceCount;
+        uint16 RotExpressionMapCount;
+        uint16 SkinConstraintCount;
         uint16 AimConstraintCount;
         uint16 MaterialConstraintInfoCount;
         byte   UnknownBytes[14];
@@ -1018,8 +1024,8 @@ typedef struct
         uint64 ConstraintInfoEntry <format=hex>;
         uint64 ObjectSettingEntry <format=hex>;
         uint64 RotExpressionInfoEntry <format=hex>;
-        uint64 SimpleConstraintTableEntry <format=hex>;
-        uint64 SimpleConstraintSourceTableEntry <format=hex>;
+        uint64 RotExpressionMapEntry <format=hex>;
+        uint64 SkinConstraintTableEntry <format=hex>;
         uint64 AimConstraintTableEntry <format=hex>;
         uint64 SectionTableEntry <format=hex>;
         uint64 DependencyTableEntry <format=hex>;
@@ -1028,8 +1034,8 @@ typedef struct
         uint16 DependencyCount;
         uint16 ObjectSettingCount;
         uint16 RotExpressionInfoCount;
-        uint16 SimpleConstraintCount;
-        uint16 SimpleConstraintSourceCount;
+        uint16 RotExpressionMapCount;
+        uint16 SkinConstraintCount;
         uint16 AimConstraintCount;
         byte   UnknownBytes[8];
         break;
@@ -1038,16 +1044,16 @@ typedef struct
         uint64 ConstraintInfoEntry <format=hex>;
         uint64 ObjectSettingEntry <format=hex>;
         uint64 RotExpressionInfoEntry <format=hex>;
-        uint64 SimpleConstraintTableEntry <format=hex>;
-        uint64 SimpleConstraintSourceTableEntry <format=hex>;
+        uint64 RotExpressionMapEntry <format=hex>;
+        uint64 SkinConstraintTableEntry <format=hex>;
         uint64 AimConstraintTableEntry <format=hex>;
         uint64 SectionTableEntry <format=hex>;
         uint16 ConeDriverCount;
         uint16 ConstraintCount;
         uint16 ObjectSettingCount;
         uint16 RotExpressionInfoCount;
-        uint16 SimpleConstraintCount;
-        uint16 SimpleConstraintSourceCount;
+        uint16 RotExpressionMapCount;
+        uint16 SkinConstraintCount;
         uint16 AimConstraintCount;
         byte   UnknownBytes[2];
         break;
@@ -1057,15 +1063,15 @@ typedef struct
         uint64 ObjectSettingEntry <format=hex>;
         uint64 RotExpressionInfoEntry <format=hex>;
         uint64 RotExpressionMapEntry <format=hex>;
-        uint64 SimpleConstraintTableEntry <format=hex>;
-        uint64 SimpleConstraintSourceTableEntry <format=hex>;
+        uint64 SkinConstraintTableEntry <format=hex>;
+        uint64 SkinConstraintSourceTableEntry <format=hex>;
         uint16 ConeDriverCount;
         uint16 ConstraintCount;
         uint16 ObjectSettingCount;
         uint16 RotExpressionInfoCount;
         uint16 RotExpressionMapCount;
-        uint16 SimpleConstraintCount;
-        uint16 SimpleConstraintSourceCount;
+        uint16 SkinConstraintCount;
+        uint16 SkinConstraintSourceCount;
         byte   UnknownBytes[10];
         break;
     case 11: // RE2R, DMC5
@@ -1074,13 +1080,13 @@ typedef struct
         uint64 ObjectSettingEntry <format=hex>;
         uint64 RotExpressionInfoEntry <format=hex>;
         uint64 RotExpressionMapEntry <format=hex>;
-        uint64 SimpleConstraintTableEntry <format=hex>;
+        uint64 SkinConstraintTableEntry <format=hex>;
         uint16 ConeDriverCount;
         uint16 ConstraintCount;
         uint16 ObjectSettingCount;
         uint16 RotExpressionInfoCount;
         uint16 RotExpressionMapCount;
-        uint16 SimpleConstraintCount;
+        uint16 SkinConstraintCount;
         byte   UnknownBytes[4];
         break;
     default:
@@ -1117,7 +1123,7 @@ typedef struct
         ObjectSettingList Settings;
     }
 } 
-BODY0 <name="JCNS Section (Type 0: Transformation)", fgcolor=0xFFBD9A, open=true>;
+BODY0 <name="JCNS Section (Type 0: Ranges)", fgcolor=0xFFBD9A, open=true>;
 
 typedef struct 
 {
@@ -1144,45 +1150,45 @@ typedef struct
 {
     struct 
     {
-        ConstraintSimple SimpleConstraint[header.SimpleConstraintCount] <fgcolor=0xFF7CEF, optimize=false>;
-    } SimpleConstraintInfo <name="SimpleConstraint: Info">;
+        ConstraintSkin SkinConstraint[header.SkinConstraintCount] <fgcolor=0xFF7CEF, optimize=false>;
+    } SkinConstraintInfo <name="SkinConstraint: Info">;
     
-    if (header.SimpleConstraintSourceCount != 0)
+    if (Version >= 29 && header.SkinConstraintSourceCount != 0)
     {
-        FSeek(header.SimpleConstraintSourceTableEntry);
+        FSeek(header.SkinConstraintSourceTableEntry);
         if (Version >= 35)
         {
             struct
             {
-                ConstraintSimpleSrcInfo SimpleConstraintSource[header.SimpleConstraintSourceCount];
-            } SimpleConstraintSrcInfoList <name="SimpleConstraint: Source Info">;
-            if (header.SimpleConstraintHashTableItemCount > 0)
+                ConstraintSkinSrcInfo SkinConstraintSource[header.SkinConstraintSourceCount];
+            } SkinConstraintSrcInfoList <name="SkinConstraint: Source Info">;
+            if (header.SkinConstraintHashTableItemCount > 0)
             {
-                FSeek(header.SimpleConstraintHashTableEntry);
+                FSeek(header.SkinConstraintHashTableEntry);
                 struct
                 {
-                    hash Hash[header.SimpleConstraintHashTableItemCount];
-                } SimpleConstraintHashTbl <name="SimpleConstraint: Hash Table">;
+                    hash Hash[header.SkinConstraintHashTableItemCount];
+                } SkinConstraintHashTbl <name="SkinConstraint: Hash Table">;
             }
         }
         else
-        { hash SourceHashes[header.SimpleConstraintSourceCount]; }
+        { hash SourceHashes[header.SkinConstraintSourceCount]; }
     }
 }
-BODY2 <name="JCNS Section (Type 2: Simple)", open=true, fgcolor=0xFF7CEF>;
+BODY2 <name="JCNS Section (Type 2: Skin Constraints)", open=true, fgcolor=0xFF7CEF>;
 
 typedef struct
 {
     ConstraintAim AimConstraint[header.AimConstraintCount] <optimize=false>;
 }
-BODY3 <name="JCNS Section (Type 3: Aim)", fgcolor=0xEDDC7C>;
+BODY3 <name="JCNS Section (Type 3: Aim)", open=true, fgcolor=0xEDDC7C>;
 
 typedef struct
 {
     FSeek(header.MaterialConstraintInfoEntry);
     MatCnsInfo MaterialConstraintInfo[header.MaterialConstraintInfoCount] <optimize=false>;
 }
-BODY4 <name="JCNS Section (Type 4: Material Constraints)", fgcolor=0x00EDFF>;
+BODY4 <name="JCNS Section (Type 4: Material Constraints)", open=true, fgcolor=0x00EDFF>;
 
 typedef struct 
 {
@@ -1202,16 +1208,16 @@ typedef struct(uint8 SectionCount)
     {
         //uint32 SectionType;
         enum<uint32> {
-            Transformation,
+            Ranges,
             RotationExpressions,
-            SimpleConstraints,
+            SkinConstraints,
             Aim,
             MaterialConstraints,
             JointExportGraph
         } SectionType;
     }
 }
-SECTIONTBL <name="JCNS Sections", read=Str("%u JCNS Section(s)", SectionCount), open=true, bgcolor=cBlack, fgcolor=cWhite>;
+SECTIONTBL <name="JCNS Sections", read=Str("%u JCNS Section(s)", SectionCount), bgcolor=cBlack, fgcolor=cWhite>;
 
 typedef struct 
 {
@@ -1238,9 +1244,9 @@ switch (Version)
             FSeek(header.RotExpressionInfoEntry);
             BODY1 body1;
         }
-        if (header.SimpleConstraintCount > 0)
+        if (header.SkinConstraintCount > 0)
         {
-            FSeek(header.SimpleConstraintTableEntry);
+            FSeek(header.SkinConstraintTableEntry);
             BODY2 body2;
         }
         if (header.AimConstraintCount > 0)
@@ -1280,9 +1286,9 @@ switch (Version)
             FSeek(header.RotExpressionInfoEntry);
             BODY1 body1;
         }
-        if (header.SimpleConstraintCount > 0)
+        if (header.SkinConstraintCount > 0)
         {
-            FSeek(header.SimpleConstraintTableEntry);
+            FSeek(header.SkinConstraintTableEntry);
             BODY2 body2;
         }
         if (header.AimConstraintCount > 0)
@@ -1321,9 +1327,9 @@ switch (Version)
             FSeek(header.RotExpressionInfoEntry);
             BODY1 body1;
         }
-        if (header.SimpleConstraintCount > 0)
+        if (header.SkinConstraintCount > 0)
         {
-            FSeek(header.SimpleConstraintTableEntry);
+            FSeek(header.SkinConstraintTableEntry);
             BODY2 body2;
         }
         if (header.AimConstraintCount > 0)
@@ -1357,9 +1363,9 @@ switch (Version)
             FSeek(header.RotExpressionInfoEntry);
             BODY1 body1;
         }
-        if (header.SimpleConstraintCount > 0)
+        if (header.SkinConstraintCount > 0)
         {
-            FSeek(header.SimpleConstraintTableEntry);
+            FSeek(header.SkinConstraintTableEntry);
             BODY2 body2;
         }
         if (header.AimConstraintCount > 0)
@@ -1385,9 +1391,9 @@ switch (Version)
             FSeek(header.RotExpressionInfoEntry);
             BODY1 body1;
         }
-        if (header.SimpleConstraintCount > 0)
+        if (header.SkinConstraintCount > 0)
         {
-            FSeek(header.SimpleConstraintTableEntry);
+            FSeek(header.SkinConstraintTableEntry);
             BODY2 body2;
         }
         if (header.AimConstraintCount > 0)
@@ -1413,9 +1419,9 @@ switch (Version)
             FSeek(header.RotExpressionInfoEntry);
             BODY1 body1;
         }
-        if (header.SimpleConstraintCount > 0)
+        if (header.SkinConstraintCount > 0)
         {
-            FSeek(header.SimpleConstraintTableEntry);
+            FSeek(header.SkinConstraintTableEntry);
             BODY2 body2;
         }
         if (header.AimConstraintCount > 0)
@@ -1436,9 +1442,9 @@ switch (Version)
             FSeek(header.RotExpressionInfoEntry);
             BODY1 body1;
         }
-        if (header.SimpleConstraintCount > 0)
+        if (header.SkinConstraintCount > 0)
         {
-            FSeek(header.SimpleConstraintTableEntry);
+            FSeek(header.SkinConstraintTableEntry);
             BODY2 body2;
         }
         if (header.AimConstraintCount > 0)
@@ -1459,9 +1465,9 @@ switch (Version)
             FSeek(header.RotExpressionInfoEntry);
             BODY1 body1;
         }
-        if (header.SimpleConstraintCount > 0)
+        if (header.SkinConstraintCount > 0)
         {
-            FSeek(header.SimpleConstraintTableEntry);
+            FSeek(header.SkinConstraintTableEntry);
             BODY2 body2;
         }
         break;
@@ -1475,9 +1481,9 @@ switch (Version)
             FSeek(header.RotExpressionInfoEntry);
             BODY1 body1;
         }
-        if (header.SimpleConstraintCount > 0)
+        if (header.SkinConstraintCount > 0)
         {
-            FSeek(header.SimpleConstraintTableEntry);
+            FSeek(header.SkinConstraintTableEntry);
             BODY2 body2;
         }
         break;
