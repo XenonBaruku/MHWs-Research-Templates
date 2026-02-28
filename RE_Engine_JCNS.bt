@@ -3,7 +3,7 @@
 //
 //      File: RE_Engine_JCNS.bt
 //   Authors: XenonValstrax
-//   Version: 0.65.10
+//   Version: 0.65.11
 //   Purpose: Parsing Joint Constraints (*.jcns) files from most RE Engine games
 //  Category: RE Engine
 // File Mask: *.jcns.*
@@ -35,21 +35,21 @@ local uint32 _;
 // vec3
 typedef struct
 {
-    float axisX <name="X", fgcolor=0x5042FF, bgcolor=0x000070>;
-    float axisY <name="Y", fgcolor=0x00FF00, bgcolor=0x007000>;
-    float axisZ <name="Z", fgcolor=0xFFAA50, bgcolor=0x700000>;
+    float X <name="X", fgcolor=0x5042FF, bgcolor=0x000070>;
+    float Y <name="Y", fgcolor=0x00FF00, bgcolor=0x007000>;
+    float Z <name="Z", fgcolor=0xFFAA50, bgcolor=0x700000>;
 } 
-vec3 <read=Str("[%f, %f, %f]", axisX, axisY, axisZ), write=Vec3FWrite>;
+vec3 <read=Str("[%f, %f, %f]", X, Y, Z), write=Vec3FWrite>;
 
 // vec4
 typedef struct
 {
-    float axisX <name="X", fgcolor=0x5042FF, bgcolor=0x000070>;
-    float axisY <name="Y", fgcolor=0x00FF00, bgcolor=0x007000>;
-    float axisZ <name="Z", fgcolor=0xFFAA50, bgcolor=0x700000>;
-    float axisW <name="W", fgcolor=0xEADE00, bgcolor=0x7E6A00>;
+    float X <name="X", fgcolor=0x5042FF, bgcolor=0x000070>;
+    float Y <name="Y", fgcolor=0x00FF00, bgcolor=0x007000>;
+    float Z <name="Z", fgcolor=0xFFAA50, bgcolor=0x700000>;
+    float W <name="W", fgcolor=0xEADE00, bgcolor=0x7E6A00>;
 } 
-vec4 <read=Str("[%f, %f, %f, %f]", axisX, axisY, axisZ, axisW), write=Vec4FWrite>;
+vec4 <read=Str("[%f, %f, %f, %f]", X, Y, Z, W), write=Vec4FWrite>;
 
 // matrix 3x3
 typedef struct
@@ -110,15 +110,6 @@ enum <uint8> TransformationID
 };
 
 enum <uint8> AxisID { X, Y, Z, W, UnknownAxis_4, UnknownAxis_5, UnknownAxis_6, UnknownAxis_7, UnknownAxis_8 };
-//enum <uint8> AxisID { X, Y, Z, W };
-
-// range2
-typedef struct
-{
-    float min <name="Minimum">;
-    float max <name="Maximum">;
-} 
-range2 <read=Str("[%f, %f]", min, max), write=Range2FWrite>;
 
 // range3
 typedef struct
@@ -137,14 +128,14 @@ typedef struct
     {
         local uint64 ReturnPos = FTell();
         FSeek(WStrOffset);
-        wstring WString <bgcolor=0x666666, fgcolor=0xFF00FA>; //<fgcolor=0xFFBB70>;
+        wstring WString <bgcolor=0x666666, fgcolor=0xFF00FA>;
         FSeek(ReturnPos);
     }
     else local wstring WString = "(empty)";
 } 
 WStringOffset <read=WString, write=WriteWStrStringOffset(Str(value), WStrOffset, WString)>;
 
-typedef uint32 hash <format=hex, read=Str("%08Xh", this)>;//, write="">;
+typedef uint32 hash <format=hex, read=Str("%08Xh", this)>;
 
 typedef struct
 {
@@ -166,42 +157,9 @@ typedef struct
 } 
 hashindexed <read=readStr, optimize=false>;
 
+
+
 //———————————————/* - FUNCTIONS - */———————————————//
-
-void AddConstraint(wstring JointNames)
-{
-    Printf("%s\n", JointNames);
-    local byte ObjectName;
-    
-    local uint _;
-    local uint __;
-    local uint item = 0;
-    local byte buffer[1024];
-    for (_; _ < WStrlen(JointNames); ++_)
-    {
-        if (JointNames[_] != 0x3b && item < 1 ) { buffer[_] = JointNames[_]; } 
-        else if (JointNames[_] == 0x3b && item == 1)
-        {
-            for (__; __ < Strlen(buffer); ++__)
-            {
-                ObjectName[__] = buffer[__];
-            }
-            ++item;
-        }
-    }
-    Printf("%s, %d\n", Str(ObjectName), WStrlen(ObjectName));
-}
-
-void AddCSource(wstring name)
-{
-    
-}
-
-void Range2FWrite( range3 &r, string s )
-{
-    SScanf( s, "[%f, %f]", r.min, r.max );
-}
-
 void Range3FWrite( range3 &r, string s )
 {
     SScanf( s, "[%f, %f, %f]", r.min, r.UnknownFloat32, r.max );
@@ -209,12 +167,12 @@ void Range3FWrite( range3 &r, string s )
 
 void Vec3FWrite( vec3 &v, string s )
 {
-    SScanf( s, "[%f, %f, %f]", v.axisX, v.axisY, v.axisZ );
+    SScanf( s, "[%f, %f, %f]", v.X, v.Y, v.Z );
 }
 
 void Vec4FWrite( vec4 &v, string s )
 {
-    SScanf( s, "[%f, %f, %f, %f]", v.axisX, v.axisY, v.axisZ, v.axisW );
+    SScanf( s, "[%f, %f, %f, %f]", v.X, v.Y, v.Z, v.W );
 }
 
 void CnsFlagsFWrite( flags_cns &flags, string s )
@@ -349,7 +307,7 @@ typedef struct
     hashindexed    JointHash;
     hashindexed    PreviousJointHash;
     hashindexed    UnknownHash;
-    float          Angle <comment="Angle in radians.">;
+    float          AngleRad <comment="Angle in radians.">;
     uint32         UnknownUInt32;
     uint8          UnknownUInt8;
     uint8          UnknownUInt8;
@@ -388,7 +346,7 @@ typedef struct
     { 
         hash           UnknownWStringHash;
     }
-    float              Angle <comment="Angle in radians.">;
+    float              AngleRad <comment="Angle in radians.">;
     if (Version >= 24)
     { 
         uint32         UnknownUInt32;
@@ -413,6 +371,46 @@ typedef struct
     { ConeDriver_v1 ConeDriver[header.ConeDriverCount]; }
 } 
 ConeDriverList <read=Str("  < %u Cone Driver(s)... >  ", header.ConeDriverCount), fgcolor=0xDCED7C>;
+
+//struct ConeDriverInfoList
+typedef struct 
+{
+    uint64  Offset <format=hex>;
+    local uint64 ReturnPos = FTell();
+    if (Version >= 35) { FSkip(36); }
+    else if (Version > 12) { FSkip(32); }
+    else { FSkip(24); }
+    uint8   Count;
+    if (Count > 0)
+        {
+        FSeek(Offset);
+        struct 
+        {
+            if (Version >= 24)
+            {
+                float    UnknownFloat32;
+                uint32   UnknownUInt32;
+                float    UnknownFloat32;
+                uint32   UnknownUInt32;
+            }
+            else
+            { float      UnknownFloat32; }
+            float        AngleDeg;
+            uint8        UnknownUInt8;
+            uint8        ConeDriverIndex;
+            uint8        UnknownUInt8;
+            uint8        UnknownUInt8;
+            if (Version >= 29)
+            {
+                float    UnknownFloat32;
+                float    UnknownFloat32;
+            }
+        }
+        ConeDriverInfo[Count] <read=Str("(%u) %s : %f", ConeDriverIndex, parentof(parentof(parentof(parentof(this)))).ConeDrivers.ConeDriver[ConeDriverIndex].Name.WString, AngleDeg), optimize=false>;
+    }
+    FSeek(ReturnPos);
+}
+ConeDriverInfoList <name="Constraint: Cone Driver List", read=Str("< %u Cone Driver(s) >", Count), fgcolor=cLtYellow>;
 
 // struct SourceExtraInfo
 typedef struct
@@ -454,8 +452,8 @@ typedef struct
     byte             UnknownUInt8;
     byte             UnknownUInt8;
     byte             UnknownUInt8;
-    range3            MapFromRange <name="MapFrom: Range">;
-    range3            MapToRange <name="MapTo: Range">;
+    range3           MapFromRange <name="MapFrom: Range">;
+    range3           MapToRange <name="MapTo: Range">;
     vec4             UnknownVector;
     
     returnPos = FTell();
@@ -467,19 +465,11 @@ typedef struct
     }
     if (ExtraInfoCount > 0) // Prevent warnings
     { SourceExtraInfo SrcExtInfo[ExtraInfoCount] <name="UnknownExtraInfo", fgcolor=cLtGreen, optimize=false>; }
-    //for (_ = 0; _ < UnknownExt2Count; ++_)
-    //{
-    //    UnknownSourceExt2 SrcExt2;
-    //}
     FSeek(returnPos);
     
     local string readStr;
     local hash readHash = murmurhash3_32(SourceName.WString);
     
-    //if (Version >= 35)
-    //{ SPrintf(readStr, "%s - HashIndex: %u; Hash: %08Xh; Hash(Generated): %08Xh", SourceName.WString, SourceHashIndex, HashList.Hash[SourceHashIndex], readHash); }
-    //else
-    //{ SPrintf(readStr, "%s - Hash: %08Xh; Hash(Generated): %08Xh", SourceName.WString, SourceHash, readHash); }
     SPrintf(readStr, "%s - Hash: %08Xh; Hash(Generated): %08Xh", SourceName.WString, SourceHash, readHash);
 } 
 ConstraintSource_v2 <read=readStr, write="">;
@@ -489,8 +479,8 @@ typedef struct
 {
     WStringOffset    SourceName <name="Source: Name">;
     hash             SourceHash <name="Source: Hash", comment="Hash here is read from file directly.">;
-    range3            MapFromRange <name="MapFrom: Range">;
-    range3            MapToRange <name="MapTo: Range">;
+    range3           MapFromRange <name="MapFrom: Range">;
+    range3           MapToRange <name="MapTo: Range">;
     byte             UnknownUInt8;
     byte             UnknownUInt8;
     AxisID           SourceAxis;
@@ -509,7 +499,6 @@ typedef struct
 {
     //byte CnsInput <name="Input name here to add source...", read="  <Object Name>  ", write=AddCSource(WStr(value))>;
     //FSkip(-1);
-    
     uint64  OffsetSourceList;
     local uint64 ReturnPos = FTell();
     if (Version > 12) 
@@ -530,52 +519,8 @@ typedef struct
         { ConstraintSource_v1 CSource[SourceCount] <name="Constraint: Source", optimize=false>; }
     }
     FSeek(ReturnPos);
-    
 } 
 ConstraintSourceList <name="Constraint: Source List", read=Str("< %u Constraint Source(s) >", parentof(this).SourceCount), fgcolor=cLtRed>;
-
-//struct ExtraConstraintInfo
-typedef struct 
-{
-    uint64  Offset;
-    local uint64 ReturnPos = FTell();
-    if (Version >= 35) { FSkip(36); }
-    else if (Version > 12) { FSkip(32); }
-    else { FSkip(24); }
-    uint8   Count;
-    if (Count > 0)
-        {
-        FSeek(Offset);
-        struct 
-        {
-            float    UnknownFloat32;
-            float    UnknownFloat32;
-            if (Version >= 24)
-            {
-                float    UnknownFloat32;
-                float    UnknownFloat32;
-                float    UnknownFloat32;
-            }
-            uint8    UnknownUInt8;
-            uint8    ConeDriverIndex;
-            uint8    UnknownUInt8;
-            uint8    UnknownUInt8;
-            if (Version >= 29)
-            {
-                float    UnknownFloat32;
-                float    UnknownFloat32;
-            }
-            local string readStr;
-            if (Version >= 24)
-            { SPrintf(readStr, "(%u) %s : [%f, %f]", ConeDriverIndex, parentof(parentof(parentof(parentof(this)))).ConeDrivers.ConeDriver[ConeDriverIndex].Name.WString, UnknownFloat32[3], UnknownFloat32[4]); }
-            else
-            { SPrintf(readStr, "(%u) %s : [%f, %f]", ConeDriverIndex, parentof(parentof(parentof(parentof(this)))).ConeDrivers.ConeDriver[ConeDriverIndex].Name.WString, UnknownFloat32[0], UnknownFloat32[1]); }
-        }
-        ConeDriverInfo[Count] <read=readStr, optimize=false>;
-    }
-    FSeek(ReturnPos);
-}
-ConeDriverInfoList <name="Constraint: Cone Driver List", read=Str("< %u Cone Driver(s) >", Count), fgcolor=cLtYellow>;
 
 // struct Constraint
 typedef struct
@@ -606,7 +551,6 @@ typedef struct
     {
         uint8              ExtraConstraintInfoCount <fgcolor=cLtYellow, bgcolor=cBlack>;
         uint8              SourceCount   <fgcolor=cLtRed, bgcolor=cBlack>;
-        //uint8            UnknownFlags   <bgcolor=cBlack, format=binary>;
         flags_cns          Flags <bgcolor=cBlack>; 
         TransformationID   Transformation <bgcolor=cBlack>;
         vec4               UnknownVector;
@@ -624,7 +568,7 @@ typedef struct
     {
         uint8              ExtraConstraintInfoCount <fgcolor=cLtYellow, bgcolor=cBlack>;
         uint8              SourceCount   <fgcolor=cLtRed, bgcolor=cBlack>;
-        uint8              UnknownUInt8   <bgcolor=cBlack, comment="Mix?">;
+        uint8              UnknownUInt8   <bgcolor=cBlack>;
         TransformationID   Transformation <bgcolor=cBlack>;
         uint8              UnknownUInt8   <bgcolor=cBlack>;
         AxisID             TransformAxis  <bgcolor=cBlack>;
@@ -650,7 +594,6 @@ typedef struct
     if (SourceCount > 1) { SPrintf(readStr, "%s[%08Xh|%08Xh] << %s[%08Xh|%08Xh]...<%u more>", ObjectName.WString, ObjectHash, readHash, CSourceList.CSource[0].SourceName.WString, CSourceList.CSource.SourceHash, CSourceList.CSource[0].readHash, SourceCount - 1); }
     else if (SourceCount == 1) { SPrintf(readStr, "%s[%08Xh|%08Xh] << %s[%08Xh|%08Xh]", ObjectName.WString, ObjectHash, readHash, CSourceList.CSource.SourceName.WString, CSourceList.CSource.SourceHash, CSourceList.CSource.readHash); }
     else { SPrintf(readStr, "%s[%08Xh|%08Xh]", ObjectName.WString, ObjectHash, readHash); }
-    //SPrintf(readStr, "%s - %s [%X,%X]", ConstraintName.WString, CSource.Source.WString, readHash, CSource.readHash);
 } 
 ConstraintInfo <read=readStr, write="">;
 
@@ -659,9 +602,7 @@ typedef struct
 {
     //byte CnsInput <name="Input joints here to add a new constraint...", read="Example: ObjectName;SourceName1;SourceName2;...", write=AddConstraint(Str(value))>;
     //FSkip(-1);
-    
     ConstraintInfo Constraint[header.ConstraintCount] <name="Constraint", optimize=false>;
-    
 } 
 ConstraintList <read=Str("  < %u Constraint(s)... >  ",header.ConstraintCount)>;
 
@@ -952,7 +893,7 @@ typedef struct
         uint64 AimConstraintTableEntry <format=hex>;
         uint64 MaterialConstraintInfoEntry <format=hex>;
         uint64 JointExportGraphInfoEntry <format=hex>;
-        uint64 SectionTypeEntry <format=hex>;
+        uint64 SectionTableEntry <format=hex>;
         uint64 DependencyTableEntry <format=hex>;
         uint64 HashTableEntry <format=hex>;
         uint64 SimpleConstraintHashTableEntry <format=hex>;
@@ -970,10 +911,6 @@ typedef struct
         uint16 MaterialConstraintInfoCount;
         uint8 SectionCount;
         uint8  UnknownUInt8[5];
-        local uint64 returnPos = FTell();
-        FSeek(SectionTypeEntry);
-        uint32 SectionType[SectionCount];
-        FSeek(returnPos);
         break;
     case 35: // RE9, PRAGMATA SKETCHBOOK - DEMO, MHS3Trial
         uint64 ConeDriverTableEntry <format=hex>;
@@ -988,7 +925,7 @@ typedef struct
         uint64 AimConstraintTableEntry <format=hex>;
         uint64 MaterialConstraintInfoEntry <format=hex>;
         uint64 JointExportGraphInfoEntry <format=hex>;
-        uint64 SectionTypeEntry <format=hex>;
+        uint64 SectionTableEntry <format=hex>;
         uint64 DependencyTableEntry <format=hex>;
         uint64 HashTableEntry <format=hex>;
         int32  HashTableItemCount;
@@ -999,16 +936,12 @@ typedef struct
         uint16 RotExpressionInfoCount;
         uint16 RotExpressionMapCount;
         uint16 SimpleConstraintCount;
-        uint16 SimpleConstraintHashTableItemCount; // Where's entry?
         uint16 SimpleConstraintSourceCount;
+        uint16 SimpleConstraintHashTableItemCount;
         uint16 AimConstraintCount;
         uint16 MaterialConstraintInfoCount;
         uint8  SectionCount;
         uint8  UnknownUInt8[13];
-        local uint64 returnPos = FTell();
-        FSeek(SectionTypeEntry);
-        uint32 SectionType[SectionCount];
-        FSeek(returnPos);
         break;
     case 29: // MHWs (pre-TU4)
         uint64 ConeDriverTableEntry <format=hex>;
@@ -1021,7 +954,7 @@ typedef struct
         uint64 AimConstraintTableEntry <format=hex>;
         uint64 MaterialConstraintInfoEntry <format=hex>;
         uint64 JointExportGraphInfoEntry <format=hex>;
-        uint64 SectionTypeEntry <format=hex>;
+        uint64 SectionTableEntry <format=hex>;
         uint64 DependencyTableEntry <format=hex>;
         uint16 ConeDriverCount;
         uint16 ConstraintCount;
@@ -1034,10 +967,6 @@ typedef struct
         uint16 AimConstraintCount;
         uint16 MaterialConstraintInfoCount;
         uint8  SectionCount;
-        local uint64 returnPos = FTell();
-        FSeek(SectionTypeEntry);
-        uint32 SectionType[SectionCount];
-        FSeek(returnPos);
         byte UnknownBytes[11];
         break;
     case 24: // DD2
@@ -1049,7 +978,7 @@ typedef struct
         uint64 SimpleConstraintSourceTableEntry <format=hex>;
         uint64 AimConstraintTableEntry <format=hex>;
         uint64 MaterialConstraintInfoEntry <format=hex>;
-        uint64 SectionTypeEntry <format=hex>;
+        uint64 SectionTableEntry <format=hex>;
         uint64 DependencyTableEntry <format=hex>;
         uint16 ConeDriverCount;
         uint16 ConstraintCount;
@@ -1061,10 +990,6 @@ typedef struct
         uint16 AimConstraintCount;
         uint16 MaterialConstraintInfoCount;
         byte   UnknownBytes[14];
-        local uint64 returnPos = FTell();
-        FSeek(SectionTypeEntry);
-        uint32 SectionType[5];
-        FSeek(returnPos);
         break;
     case 22: // RE4R, SF6
         uint64 ConeDriverTableEntry <format=hex>;
@@ -1075,7 +1000,7 @@ typedef struct
         uint64 SimpleConstraintSourceTableEntry <format=hex>;
         uint64 AimConstraintTableEntry <format=hex>;
         uint64 MaterialConstraintInfoEntry <format=hex>;
-        uint64 SectionTypeEntry <format=hex>;
+        uint64 SectionTableEntry <format=hex>;
         uint64 DependencyTableEntry <format=hex>;
         uint16 ConeDriverCount;
         uint16 ConstraintCount;
@@ -1087,10 +1012,6 @@ typedef struct
         uint16 AimConstraintCount;
         uint16 MaterialConstraintInfoCount;
         byte   UnknownBytes[14];
-        local uint64 returnPos = FTell();
-        FSeek(SectionTypeEntry);
-        uint32 SectionType[5];
-        FSeek(returnPos);
         break;
     case 21: // MHRS
         uint64 ConeDriverTableEntry <format=hex>;
@@ -1100,7 +1021,7 @@ typedef struct
         uint64 SimpleConstraintTableEntry <format=hex>;
         uint64 SimpleConstraintSourceTableEntry <format=hex>;
         uint64 AimConstraintTableEntry <format=hex>;
-        uint64 SectionTypeEntry <format=hex>;
+        uint64 SectionTableEntry <format=hex>;
         uint64 DependencyTableEntry <format=hex>;
         uint16 ConeDriverCount;
         uint16 ConstraintCount;
@@ -1111,10 +1032,6 @@ typedef struct
         uint16 SimpleConstraintSourceCount;
         uint16 AimConstraintCount;
         byte   UnknownBytes[8];
-        local uint64 returnPos = FTell();
-        FSeek(SectionTypeEntry);
-        uint32 SectionType[4];
-        FSeek(returnPos);
         break;
     case 16: // RE8
         uint64 ConeDriverTableEntry <format=hex>;
@@ -1124,7 +1041,7 @@ typedef struct
         uint64 SimpleConstraintTableEntry <format=hex>;
         uint64 SimpleConstraintSourceTableEntry <format=hex>;
         uint64 AimConstraintTableEntry <format=hex>;
-        uint64 SectionTypeEntry <format=hex>;
+        uint64 SectionTableEntry <format=hex>;
         uint16 ConeDriverCount;
         uint16 ConstraintCount;
         uint16 ObjectSettingCount;
@@ -1133,10 +1050,6 @@ typedef struct
         uint16 SimpleConstraintSourceCount;
         uint16 AimConstraintCount;
         byte   UnknownBytes[2];
-        local uint64 returnPos = FTell();
-        FSeek(SectionTypeEntry);
-        uint32 SectionType[4];
-        FSeek(returnPos);
         break;
     case 12: // RE3R
         uint64 ConeDriverTableEntry <format=hex>;
@@ -1274,10 +1187,31 @@ BODY4 <name="JCNS Section (Type 4: Material Constraints)", fgcolor=0x00EDFF>;
 typedef struct 
 {
     uint64 PathOffset <format=hex>;
+    local uint64 returnPos = FTell();
     FSeek(PathOffset);
     wstring Path;
+    FSeek(returnPos);
 } 
 BODY5 <name="JCNS Section (Type 5: Joint Export Graph)", open=true, fgcolor=0x0000ED>;
+
+typedef struct(uint8 SectionCount)
+{
+    local uint8 SectionCount = SectionCount;
+    local uint8 _ = 0;
+    for (_; _ < SectionCount; ++_)
+    {
+        //uint32 SectionType;
+        enum<uint32> {
+            Transformation,
+            RotationExpressions,
+            SimpleConstraints,
+            Aim,
+            MaterialConstraints,
+            JointExportGraph
+        } SectionType;
+    }
+}
+SECTIONTBL <name="JCNS Sections", read=Str("%u JCNS Section(s)", SectionCount), open=true, bgcolor=cBlack, fgcolor=cWhite>;
 
 typedef struct 
 {
@@ -1324,6 +1258,11 @@ switch (Version)
             FSeek(header.JointExportGraphInfoEntry);
             BODY5 body5;
         }
+        if (header.SectionCount > 0)
+        {
+            FSeek(header.SectionTableEntry);
+            SECTIONTBL sectiontbl(header.SectionCount);
+        }
         if (header.HashTableItemCount > 0)
         {
             FSeek(header.HashTableEntry);
@@ -1361,6 +1300,11 @@ switch (Version)
             FSeek(header.JointExportGraphInfoEntry);
             BODY5 body5;
         }
+        if (header.SectionCount > 0)
+        {
+            FSeek(header.SectionTableEntry);
+            SECTIONTBL sectiontbl(header.SectionCount);
+        }
         if (header.HashTableItemCount > 0)
         {
             FSeek(header.HashTableEntry);
@@ -1397,6 +1341,11 @@ switch (Version)
             FSeek(header.JointExportGraphInfoEntry);
             BODY5 body5;
         }
+        if (header.SectionCount > 0)
+        {
+            FSeek(header.SectionTableEntry);
+            SECTIONTBL sectiontbl(header.SectionCount);
+        }
         break;
     case 24: // DD2
         if (header.ConeDriverCount > 0 || header.ConstraintCount > 0)
@@ -1423,6 +1372,8 @@ switch (Version)
             FSeek(header.MaterialConstraintInfoEntry);
             BODY4 body4;
         }
+        FSeek(header.SectionTableEntry);
+        SECTIONTBL sectiontbl(5);
         break;
     case 22: // RE4R
         if (header.ConeDriverCount > 0 || header.ConstraintCount > 0)
@@ -1449,6 +1400,8 @@ switch (Version)
             FSeek(header.MaterialConstraintInfoEntry);
             BODY4 body4;
         }
+        FSeek(header.SectionTableEntry);
+        SECTIONTBL sectiontbl(5);
         break;
     case 21: // MHRS
         if (header.ConeDriverCount > 0 || header.ConstraintCount > 0)
@@ -1470,6 +1423,8 @@ switch (Version)
             FSeek(header.AimConstraintTableEntry);
             BODY3 body3;
         }
+        FSeek(header.SectionTableEntry);
+        SECTIONTBL sectiontbl(4);
         break;
     case 16: // RE8
         if (header.ConeDriverCount > 0 || header.ConstraintCount > 0)
@@ -1491,6 +1446,8 @@ switch (Version)
             FSeek(header.AimConstraintTableEntry);
             BODY3 body3;
         }
+        FSeek(header.SectionTableEntry);
+        SECTIONTBL sectiontbl(4);
         break;
     case 12: // RE3R
         if (header.ConeDriverCount > 0 || header.ConstraintCount > 0)
