@@ -3,7 +3,7 @@
 //
 //      File: RE_Engine_JCNS.bt
 //   Authors: XenonValstrax
-//   Version: 0.65.11
+//   Version: 0.65.12
 //   Purpose: Parsing Joint Constraints (*.jcns) files from most RE Engine games
 //  Category: RE Engine
 // File Mask: *.jcns.*
@@ -131,11 +131,11 @@ typedef struct
         wstring WString <bgcolor=0x666666, fgcolor=0xFF00FA>;
         FSeek(ReturnPos);
     }
-    else local wstring WString = "(empty)";
+    else local wstring WString = "(NULL)";
 } 
 WStringOffset <read=WString, write=WriteWStrStringOffset(Str(value), WStrOffset, WString)>;
 
-typedef uint32 hash <format=hex, read=Str("%08Xh", this)>;
+typedef uint32 hash <format=hex, read=HashFRead>;
 
 typedef struct
 {
@@ -173,6 +173,12 @@ void Vec3FWrite( vec3 &v, string s )
 void Vec4FWrite( vec4 &v, string s )
 {
     SScanf( s, "[%f, %f, %f, %f]", v.X, v.Y, v.Z, v.W );
+}
+
+string HashFRead( hash &h )
+{
+    if (h != 0) return Str("%08Xh", h);
+    else return "(NULL)";
 }
 
 void CnsFlagsFWrite( flags_cns &flags, string s )
@@ -305,8 +311,8 @@ typedef struct
     matrix4x3      Matrix;
     hash           NameHash;
     hashindexed    JointHash;
-    hashindexed    PreviousJointHash;
-    hashindexed    UnknownHash;
+    hashindexed    ParentJointHash;
+    hashindexed    SymmetryJointHash;
     float          AngleRad <comment="Angle in radians.">;
     uint32         UnknownUInt32;
     uint8          UnknownUInt8;
@@ -318,17 +324,17 @@ typedef struct
     uint8          UnknownUInt8;
     uint8          UnknownUInt8;
 }
-ConeDriver_v2 <read=Str("%s : [%08Xh] -- %08Xh", Name.WString, JointHash.Hash, PreviousJointHash.Hash), optimize=false>;
+ConeDriver_v2 <read=Str("%s : [%08Xh] -- %08Xh", Name.WString, JointHash.Hash, ParentJointHash.Hash), optimize=false>;
 
 // struct ConeDriver_v1
 typedef struct
 {
     WStringOffset      Name;
     WStringOffset      Joint;
-    WStringOffset      PreviousJoint;
+    WStringOffset      ParentJoint;
     if (Version >= 24)
     {
-        WStringOffset  UnknownWString;
+        WStringOffset  SymmetryJoint;
     }
     vec4               Direction;
     if (Version >= 24)
@@ -341,10 +347,10 @@ typedef struct
     }
     hash               NameHash;
     hash               JointHash;
-    hash               PreviousJointHash;
+    hash               ParentJointHash;
     if (Version >= 24)
     { 
-        hash           UnknownWStringHash;
+        hash           SymmetryJointHash;
     }
     float              AngleRad <comment="Angle in radians.">;
     if (Version >= 24)
@@ -360,7 +366,7 @@ typedef struct
     uint8              UnknownUInt8;
     uint8              UnknownUInt8;
 } 
-ConeDriver_v1 <read=Str("%s : %s[%08Xh] -- %s", Name.WString, Joint.WString, JointHash, PreviousJoint.WString), optimize=false>;
+ConeDriver_v1 <read=Str("%s : %s[%08Xh] -- %s", Name.WString, Joint.WString, JointHash, ParentJoint.WString), optimize=false>;
 
 // struct ConeDriverList
 typedef struct
@@ -434,11 +440,9 @@ typedef struct
     WStringOffset    SourceName <name="Source: Name">;
     if (Version >= 35)
     { 
-        int32        SourceHashIndex <name="Source: Hash Index", comment="Hash list index.">; 
-        returnPos = FTell();
-        FSeek(header.HashTableEntry + SourceHashIndex * 4);
-        hash         SourceHash <name="Source: Hash", comment="Hash here is read from file directly.">;
-        FSeek(returnPos);
+        hashindexed  SourceHashFromHashTbl <name="Source: Hash", comment="Hash here is read from file directly.">;
+        if (SourceHashFromHashTbl.Index != 0xFFFFFFFF)
+        { local hash SourceHash <hidden=true> = SourceHashFromHashTbl.Hash; }
     }
     else
     { hash           SourceHash <name="Source: Hash", comment="Hash here is read from file directly.">; }
@@ -460,8 +464,8 @@ typedef struct
     FSeek(ExtraInfoOffset);
     while (true)
     {
-        if (FTell() % 16 != 0) { FSkip(1); }
-        else { break; }
+        if (FTell() % 16 != 0) FSkip(1);
+        else break;
     }
     if (ExtraInfoCount > 0) // Prevent warnings
     { SourceExtraInfo SrcExtInfo[ExtraInfoCount] <name="UnknownExtraInfo", fgcolor=cLtGreen, optimize=false>; }
@@ -469,7 +473,6 @@ typedef struct
     
     local string readStr;
     local hash readHash = murmurhash3_32(SourceName.WString);
-    
     SPrintf(readStr, "%s - Hash: %08Xh; Hash(Generated): %08Xh", SourceName.WString, SourceHash, readHash);
 } 
 ConstraintSource_v2 <read=readStr, write="">;
@@ -533,16 +536,9 @@ typedef struct
     { WStringOffset        Property <name="Object: Property", comment="Object Property, such as Blend_[A-F] for material, etc.">; }
     if (Version >= 35)
     { 
-        int32              ObjectHashIndex <name="Object: Hash List Index">; 
-        if (ObjectHashIndex != 0xFFFFFFFF)
-        {
-            returnPos = FTell();
-            FSeek(header.HashTableEntry + ObjectHashIndex * 4);
-            hash           ObjectHashFromHashList <name="Object: Hash (From Hash List)">;
-            FSeek(returnPos);
-        }
+        hashindexed        ObjectHashFromHashTbl <name="Object: Hash (From Hash Table)", comment="Hash here is read from file directly.">;
     }
-    hash                 ObjectHash <name="Object: Hash", comment="Hash here is read from file directly.">;
+    hash                   ObjectHash <name="Object: Hash", comment="Hash here is read from file directly.">;
     if (Version > 12)
     { hash                 PropertyHash <name="Property: Hash", comment="Hash here is read from file directly.">; }
     else
@@ -814,9 +810,9 @@ typedef struct
         hashindexed   JointHashInfo;
         hashindexed   UnknownJointHashInfo <comment="Up joint?">;
         if (JointHashInfo.Index != 0xFFFFFFFF)
-        { local hash JointHash = JointHashInfo.Hash; }
+        { local hash  JointHash = JointHashInfo.Hash; }
         if (UnknownJointHashInfo.Index != 0xFFFFFFFF)
-        { local hash UnknownJointHash = UnknownJointHashInfo.Hash; }
+        { local hash  UnknownJointHash = UnknownJointHashInfo.Hash; }
     }
     else
     { 
@@ -1275,7 +1271,7 @@ switch (Version)
             HASHTBL HashTable;
         }
         break;
-    case 35: // RE9, PRAGMATA SKETCHBOOK - DEMO, MHS3Trial,
+    case 35: // RE9, PRAGMATA SKETCHBOOK - DEMO, MHS3Trial
         if (header.ConeDriverCount > 0 || header.ConstraintCount > 0)
         {
             FSeek(header.ConeDriverTableEntry);
