@@ -3,7 +3,7 @@
 //
 //      File: RE_Engine_JCNS.bt
 //   Authors: XenonValstrax
-//   Version: 0.65.12
+//   Version: 0.65.13
 //   Purpose: Parsing Joint Constraints (*.jcns) files from most RE Engine games
 //  Category: RE Engine
 // File Mask: *.jcns.*
@@ -35,21 +35,21 @@ local uint32 _;
 // vec3
 typedef struct
 {
-    float X <name="X", fgcolor=0x5042FF, bgcolor=0x000070>;
-    float Y <name="Y", fgcolor=0x00FF00, bgcolor=0x007000>;
-    float Z <name="Z", fgcolor=0xFFAA50, bgcolor=0x700000>;
+    float X <fgcolor=0x5042FF, bgcolor=0x000070>;
+    float Y <fgcolor=0x00FF00, bgcolor=0x007000>;
+    float Z <fgcolor=0xFFAA50, bgcolor=0x700000>;
 } 
-vec3 <read=Str("[%f, %f, %f]", X, Y, Z), write=Vec3FWrite>;
+vec3 <read=Str("[%f, %f, %f]", this.X, this.Y, this.Z), write=Vec3FWrite>;
 
 // vec4
 typedef struct
 {
-    float X <name="X", fgcolor=0x5042FF, bgcolor=0x000070>;
-    float Y <name="Y", fgcolor=0x00FF00, bgcolor=0x007000>;
-    float Z <name="Z", fgcolor=0xFFAA50, bgcolor=0x700000>;
-    float W <name="W", fgcolor=0xEADE00, bgcolor=0x7E6A00>;
+    float X <fgcolor=0x5042FF, bgcolor=0x000070>;
+    float Y <fgcolor=0x00FF00, bgcolor=0x007000>;
+    float Z <fgcolor=0xFFAA50, bgcolor=0x700000>;
+    float W <fgcolor=0xEADE00, bgcolor=0x7E6A00>;
 } 
-vec4 <read=Str("[%f, %f, %f, %f]", X, Y, Z, W), write=Vec4FWrite>;
+vec4 <read=Str("[%f, %f, %f, %f]", this.X, this.Y, this.Z, this.W), write=Vec4FWrite>;
 
 // matrix 3x3
 typedef struct
@@ -78,11 +78,11 @@ matrix4x4;
 
 typedef struct
 {
+    uint8 ConstraintFlag:1 <name="ConstraintFlag (isAdd?)", comment="isAdd?">;
     uint8 ConstraintFlag:1;
     uint8 ConstraintFlag:1;
     uint8 ConstraintFlag:1;
-    uint8 ConstraintFlag:1;
-    uint8 ConstraintFlag:1 <comment="isJoint?">;
+    uint8 ConstraintFlag:1 <name="ConstraintFlag (isJoint?)", comment="isJoint?">;
     uint8 ConstraintFlag:1;
     uint8 ConstraintFlag:1;
     uint8 ConstraintFlag:1;
@@ -91,7 +91,7 @@ flags_cns <read=Str("%u%u%u%u%u%u%u%u", ConstraintFlag[0], ConstraintFlag[1], Co
 
 enum <uint8> TransformationID 
 { 
-    Location, 
+    Translation, 
     Rotation, 
     Scale, 
     BlendShape,
@@ -109,16 +109,27 @@ enum <uint8> TransformationID
     UnkRotation_16
 };
 
+enum <uint8> InterpolationID
+{ 
+    Linear,
+    FastInAndOut,
+    FastOut,
+    FastIn,
+    SlowInAndOut,
+    SlowOut,
+    SlowIn
+};
+
 enum <uint8> AxisID { X, Y, Z, W, UnknownAxis_4, UnknownAxis_5, UnknownAxis_6, UnknownAxis_7, UnknownAxis_8 };
 
 // range3
 typedef struct
 {
     float min <name="Minimum">;
-    float UnknownFloat32;
+    float mid <name="Midpoint">;
     float max <name="Maximum">;
 } 
-range3 <read=Str("[%f, %f, %f]", min, UnknownFloat32, max), write=Range3FWrite>;
+range3 <read=Str("[%f, %f, %f]", min, mid, max), write=Range3FWrite>;
 
 // WStringOffset
 typedef struct 
@@ -162,7 +173,7 @@ hashindexed <read=readStr, optimize=false>;
 //———————————————/* - FUNCTIONS - */———————————————//
 void Range3FWrite( range3 &r, string s )
 {
-    SScanf( s, "[%f, %f, %f]", r.min, r.UnknownFloat32, r.max );
+    SScanf( s, "[%f, %f, %f]", r.min, r.mid, r.max );
 }
 
 void Vec3FWrite( vec3 &v, string s )
@@ -392,51 +403,43 @@ typedef struct
         FSeek(Offset);
         struct 
         {
+            float    UnknownFloat32;
             if (Version >= 24)
             {
                 float    UnknownFloat32;
-                uint32   UnknownUInt32;
                 float    UnknownFloat32;
-                uint32   UnknownUInt32;
+                float    UnknownFloat32;
             }
-            else
-            { float      UnknownFloat32; }
             float        AngleDeg;
             uint8        UnknownUInt8;
-            uint8        ConeDriverIndex;
+            uint16       ConeDriverIndex;
             uint8        UnknownUInt8;
-            uint8        UnknownUInt8;
-            if (Version >= 29)
-            {
-                float    UnknownFloat32;
-                float    UnknownFloat32;
-            }
         }
         ConeDriverInfo[Count] <read=Str("(%u) %s : %f", ConeDriverIndex, parentof(parentof(parentof(parentof(this)))).ConeDrivers.ConeDriver[ConeDriverIndex].Name.WString, AngleDeg), optimize=false>;
     }
     FSeek(ReturnPos);
 }
-ConeDriverInfoList <name="Constraint: Cone Driver List", read=Str("< %u Cone Driver(s) >", Count), fgcolor=cLtYellow>;
+ConeDriverInfoList <name="Constraint: Cone Driver List", read=Str("< %u Constraint Cone Driver(s) >", Count), fgcolor=cLtYellow>;
 
 // struct SourceExtraInfo
 typedef struct
 {
     
-    float UnknownFloat32;
-    float UnknownFloat32;
-    float UnknownFloat32;
-    float UnknownFloat32;
-    float UnknownFloat32;
-    float UnknownFloat32;
-    DWORD UnknownDWORD;
+    float  FromX <name="X: From Range">;
+    float  ToX <name="X: To Range">;
+    float  FromY <name="Y: From Range">;
+    float  ToY <name="Y: To Range">;
+    float  FromZ <name="Z: From Range">;
+    float  ToZ <name="Z: To Range">;
+    uint32 UnknownUInt32;
 } 
-SourceExtraInfo;
+ComplexSrcMapping;
 
 // struct ConstraintSource_v2
 typedef struct
 {
     local uint64 returnPos;
-    uint64           ExtraInfoOffset <fgcolor=cLtGreen>; 
+    uint64           ComplexMappingInfoOffset <fgcolor=cLtGreen>; 
     WStringOffset    SourceName <name="Source: Name">;
     if (Version >= 35)
     { 
@@ -446,11 +449,11 @@ typedef struct
     }
     else
     { hash           SourceHash <name="Source: Hash", comment="Hash here is read from file directly.">; }
-    uint16           ExtraInfoCount <fgcolor=cLtGreen>;
+    uint16           ComplexMappingInfoCount <fgcolor=cLtGreen>;
     uint16           UnknownUInt16 <fgcolor=cLtBlue>;
-    byte             UnknownUInt8;
-    byte             UnknownUInt8;
-    AxisID           SourceAxis <name="Source: Axis", comment="Not quite sure.">;
+    uint8            UnknownUInt8;
+    InterpolationID  Interpolation <name="UnknownUInt8 (Interpolation?)", comment="Not sure.">;
+    AxisID           SourceAxis <name="Source: Axis">;
     byte             UnknownUInt8;
     byte             UnknownUInt8;
     byte             UnknownUInt8;
@@ -458,17 +461,17 @@ typedef struct
     byte             UnknownUInt8;
     range3           MapFromRange <name="MapFrom: Range">;
     range3           MapToRange <name="MapTo: Range">;
-    vec4             UnknownVector;
+    vec4             UnknownVector4D;
     
     returnPos = FTell();
-    FSeek(ExtraInfoOffset);
+    FSeek(ComplexMappingInfoOffset);
     while (true)
     {
         if (FTell() % 16 != 0) FSkip(1);
         else break;
     }
-    if (ExtraInfoCount > 0) // Prevent warnings
-    { SourceExtraInfo SrcExtInfo[ExtraInfoCount] <name="UnknownExtraInfo", fgcolor=cLtGreen, optimize=false>; }
+    if (ComplexMappingInfoCount > 0) // Prevent warnings
+    { ComplexSrcMapping ComplexMappingInfo[ComplexMappingInfoCount] <fgcolor=cLtGreen, optimize=false>; }
     FSeek(returnPos);
     
     local string readStr;
@@ -488,7 +491,7 @@ typedef struct
     byte             UnknownUInt8;
     AxisID           SourceAxis;
     byte             UnknownBytes[5];
-    vec4             UnknownVector;
+    vec4             UnknownVector4D;
     DWORD            UnknownDWORD;
    
     local string readStr;
@@ -545,11 +548,11 @@ typedef struct
     { uint32               UnknownUInt32; }
     if (Version >= 35)
     {
-        uint8              ExtraConstraintInfoCount <fgcolor=cLtYellow, bgcolor=cBlack>;
+        uint8              ConeDriverInfoCount <fgcolor=cLtYellow, bgcolor=cBlack>;
         uint8              SourceCount   <fgcolor=cLtRed, bgcolor=cBlack>;
         flags_cns          Flags <bgcolor=cBlack>; 
         TransformationID   Transformation <bgcolor=cBlack>;
-        vec4               UnknownVector;
+        vec4               UnknownVector4D;
         float              UnknownFloat32[2];
         uint8              UnknownUInt8;
         AxisID             TransformAxis;
@@ -570,7 +573,7 @@ typedef struct
         AxisID             TransformAxis  <bgcolor=cBlack>;
         uint8              UnknownUInt8   <bgcolor=cBlack>;
         uint8              UnknownUInt8   <bgcolor=cBlack>;
-        vec4               UnknownVector;
+        vec4               UnknownVector4D;
     }
     if (Version >= 21 && Version < 35)
     {
@@ -752,7 +755,10 @@ typedef struct
     { 
         hash  ObjectHash; 
     }
-    uint32 SourceCount;
+    uint8 SourceCount;
+    uint8 UnknownUInt8;
+    uint8 UnknownUInt8;
+    uint8 UnknownUInt8;
     
     local string readStr;
     if (SourceList.SourceCount > 1)
@@ -939,9 +945,9 @@ typedef struct
         uint16 RotExpressionMapCount;
         uint16 SkinConstraintCount;
         uint16 SkinConstraintSourceCount;
-        uint16 SkinConstraintHashTableItemCount;
         uint16 AimConstraintCount;
         uint16 MaterialConstraintInfoCount;
+        uint16 UnknownUInt16;
         uint8  SectionCount;
         uint8  UnknownUInt8[13];
         break;
@@ -1158,7 +1164,7 @@ typedef struct
             {
                 ConstraintSkinSrcInfo SkinConstraintSource[header.SkinConstraintSourceCount];
             } SkinConstraintSrcInfoList <name="SkinConstraint: Source Info">;
-            if (header.SkinConstraintHashTableItemCount > 0)
+            if (Version > 35 && header.SkinConstraintHashTableItemCount > 0)
             {
                 FSeek(header.SkinConstraintHashTableEntry);
                 struct
