@@ -3,7 +3,7 @@
 //
 //      File: RE_Engine_JCNS.bt
 //   Authors: XenonValstrax
-//   Version: 0.65.13
+//   Version: 0.65.14
 //   Purpose: Parsing Joint Constraints (*.jcns) files from most RE Engine games
 //  Category: RE Engine
 // File Mask: *.jcns.*
@@ -112,11 +112,11 @@ enum <uint8> TransformationID
 
 enum <uint8> TransformIDSrc 
 { 
-    _Translation, 
-    _Rotation_1, 
-    _Rotation_2,  
-    _Rotation_3, 
-    _UnkCtrl_4,
+    Src_Translation, 
+    Src_Rotation_1, 
+    Src_Rotation_2,  
+    Src_Rotation_3, 
+    Src_UnkCtrl_4,
 };
 
 enum <uint8> UpdateTimingID
@@ -135,10 +135,10 @@ enum <uint8> AxisID { X, Y, Z, W, UnknownAxis_4, UnknownAxis_5, UnknownAxis_6, U
 typedef struct
 {
     float min <name="Minimum">;
-    float stride <name="Stride">;
+    float mid <name="Midpoint">;
     float max <name="Maximum">;
 } 
-range3 <read=Str("[%f, %f, %f]", this.min, this.stride, this.max), write=Range3FWrite>;
+range3 <read=Str("[%f, %f, %f]", this.min, this.mid, this.max), write=Range3FWrite>;
 
 // WStringOffset
 typedef struct 
@@ -182,7 +182,7 @@ hashindexed <read=readStr, optimize=false>;
 //———————————————/* - FUNCTIONS - */———————————————//
 void Range3FWrite( range3 &r, string s )
 {
-    SScanf( s, "[%f, %f, %f]", r.min, r.stride, r.max );
+    SScanf( s, "[%f, %f, %f]", r.min, r.mid, r.max );
 }
 
 void Vec3FWrite( vec3 &v, string s )
