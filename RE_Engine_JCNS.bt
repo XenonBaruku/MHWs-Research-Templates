@@ -24,7 +24,8 @@
 //     22       -  Resident Evil 4 Remake / Street Fighter 6
 //     24       -  Dragon's Dogma 2
 //     29       -  Monster Hunter Wilds (pre-TU4)
-//     35       -  Resident Evil 9 / PRAGMATA SKETCHBOOK DEMO / Monster Hunter Stories 3 Trial
+//     35       -  Resident Evil 9 / PRAGMATA SKETCHBOOK / Monster Hunter Stories 3
+//     36       -  Onimusha Way of the Sword
 //     102      -  Monster Hunter Wilds (post-TU4)
 
 LittleEndian();
@@ -78,16 +79,16 @@ matrix4x4;
 
 typedef struct
 {
-    uint8 ConstraintFlag:1 <name="ConstraintFlag (isAdd?)", comment="isAdd?">;
-    uint8 ConstraintFlag:1;
-    uint8 ConstraintFlag:1;
-    uint8 ConstraintFlag:1;
-    uint8 ConstraintFlag:1 <name="ConstraintFlag (isJoint?)", comment="isJoint?">;
-    uint8 ConstraintFlag:1;
-    uint8 ConstraintFlag:1;
-    uint8 ConstraintFlag:1;
+    uint8 ConstraintFlag_0:1 <name="ConstraintFlag (isAdd?)", comment="isAdd?">;
+    uint8 ConstraintFlag_1:1;
+    uint8 ConstraintFlag_2:1;
+    uint8 ConstraintFlag_3:1;
+    uint8 ConstraintFlag_4:1 <name="ConstraintFlag (isJoint?)", comment="isJoint?">;
+    uint8 ConstraintFlag_5:1;
+    uint8 ConstraintFlag_6:1;
+    uint8 ConstraintFlag_7:1;
 } 
-flags_cns <read=Str("%u%u%u%u%u%u%u%u", ConstraintFlag[0], ConstraintFlag[1], ConstraintFlag[2], ConstraintFlag[3], ConstraintFlag[4], ConstraintFlag[5], ConstraintFlag[6], ConstraintFlag[7])>;//, write=CnsFlagsFWrite>;
+flags_cns <read=Str("%u%u%u%u%u%u%u%u", ConstraintFlag_0, ConstraintFlag_1, ConstraintFlag_2, ConstraintFlag_3, ConstraintFlag_4, ConstraintFlag_5, ConstraintFlag_6, ConstraintFlag_7)>;//, write=CnsFlagsFWrite>;
 
 enum <uint8> TransformationID 
 { 
@@ -109,15 +110,23 @@ enum <uint8> TransformationID
     UnkRotation_16
 };
 
-enum <uint8> InterpolationID
+enum <uint8> TransformIDSrc 
 { 
-    Linear,
-    FastInAndOut,
-    FastOut,
-    FastIn,
-    SlowInAndOut,
-    SlowOut,
-    SlowIn
+    _Translation, 
+    _Rotation_1, 
+    _Rotation_2,  
+    _Rotation_3, 
+    _UnkCtrl_4,
+};
+
+enum <uint8> UpdateTimingID
+{ 
+    MotionBegin,
+    MotionEnd,
+    ConstraintBegin,
+    ConstraintEnd,
+    Last,
+    ByBehavior,
 };
 
 enum <uint8> AxisID { X, Y, Z, W, UnknownAxis_4, UnknownAxis_5, UnknownAxis_6, UnknownAxis_7, UnknownAxis_8 };
@@ -126,10 +135,10 @@ enum <uint8> AxisID { X, Y, Z, W, UnknownAxis_4, UnknownAxis_5, UnknownAxis_6, U
 typedef struct
 {
     float min <name="Minimum">;
-    float mid <name="Midpoint">;
+    float stride <name="Stride">;
     float max <name="Maximum">;
 } 
-range3 <read=Str("[%f, %f, %f]", min, mid, max), write=Range3FWrite>;
+range3 <read=Str("[%f, %f, %f]", this.min, this.stride, this.max), write=Range3FWrite>;
 
 // WStringOffset
 typedef struct 
@@ -173,7 +182,7 @@ hashindexed <read=readStr, optimize=false>;
 //———————————————/* - FUNCTIONS - */———————————————//
 void Range3FWrite( range3 &r, string s )
 {
-    SScanf( s, "[%f, %f, %f]", r.min, r.mid, r.max );
+    SScanf( s, "[%f, %f, %f]", r.min, r.stride, r.max );
 }
 
 void Vec3FWrite( vec3 &v, string s )
@@ -451,8 +460,8 @@ typedef struct
     { hash           SourceHash <name="Source: Hash", comment="Hash here is read from file directly.">; }
     uint16           ComplexMappingInfoCount <fgcolor=cLtGreen>;
     uint16           UnknownUInt16 <fgcolor=cLtBlue>;
-    uint8            UnknownUInt8;
-    InterpolationID  Interpolation <name="UnknownUInt8 (Interpolation?)", comment="Not sure.">;
+    UpdateTimingID   UpdateTiming <name="UnknownUInt8 (UpdateTiming?)", comment="Not sure.">;
+    TransformIDSrc   Transformation <name="UnknownUInt8 (Transformation?)", comment="Not sure.">;
     AxisID           SourceAxis <name="Source: Axis">;
     byte             UnknownUInt8;
     byte             UnknownUInt8;
@@ -814,20 +823,20 @@ typedef struct
     if (Version >= 35)
     {
         hashindexed   JointHashInfo;
-        hashindexed   UnknownJointHashInfo <comment="Up joint?">;
+        hashindexed   AimVectorPointJointHashInfo <comment="According to ch0252_42_00.mesh from RE9.">;
         if (JointHashInfo.Index != 0xFFFFFFFF)
         { local hash  JointHash = JointHashInfo.Hash; }
-        if (UnknownJointHashInfo.Index != 0xFFFFFFFF)
-        { local hash  UnknownJointHash = UnknownJointHashInfo.Hash; }
+        if (AimVectorPointJointHashInfo.Index != 0xFFFFFFFF)
+        { local hash  AimVectorPointJointHash = AimVectorPointJointHashInfo.Hash; }
     }
     else
     { 
         hash          JointHash;
-        hash          UnknownJointHash;
+        hash          AimVectorPointJointHash;
     }
     //float           UnknownFloat[12];
     vec3              UnknownVector;
-    vec3              TrackVector;
+    vec3              AimVector;
     vec3              UnknownVector; 
     vec3              UnknownVector;
     uint8             RotationType;
@@ -867,7 +876,6 @@ MatCnsInfo <read=Str("%08Xh", JointHash), write="">;
 
 
 //———————————————/* - STRUCTURES - */———————————————//
-// HEADER
 typedef struct
 {
     struct
@@ -886,222 +894,43 @@ typedef struct
         QWORD  UnknownQWORD;
     } Tags <comment="Usually the same in most files from diffent RE games.">;
     FSeek(Tags.DataEntry);
-    switch (Version)
-    {
-    case 102: // MHWs (post-TU4)
-        uint64 ConeDriverTableEntry <format=hex>;
-        uint64 ConstraintInfoEntry <format=hex>;
-        uint64 ObjectSettingEntry <format=hex>;
-        uint64 RotExpressionInfoEntry <format=hex>;
-        uint64 RotExpressionMapEntry <format=hex>;
-        uint64 RotExpressionSourceHashIndicesEntry <format=hex>;
-        uint64 RotExpressionHashIndicesEntry <format=hex>;
-        uint64 SkinConstraintTableEntry <format=hex>;
-        uint64 SkinConstraintSourceTableEntry <format=hex>;
-        uint64 AimConstraintTableEntry <format=hex>;
-        uint64 MaterialConstraintInfoEntry <format=hex>;
-        uint64 JointExportGraphInfoEntry <format=hex>;
-        uint64 SectionTableEntry <format=hex>;
-        uint64 DependencyTableEntry <format=hex>;
-        uint64 HashTableEntry <format=hex>;
-        uint64 SkinConstraintHashTableEntry <format=hex>;
-        int32  HashTableItemCount;
-        uint16 ConeDriverCount;
-        uint16 ConstraintCount;
-        uint16 DependencyCount;
-        uint16 ObjectSettingCount;
-        uint16 RotExpressionInfoCount;
-        uint16 RotExpressionMapCount;
-        uint16 SkinConstraintCount;
-        uint16 SkinConstraintHashTableItemCount;
-        uint16 SkinConstraintSourceCount;
-        uint16 AimConstraintCount;
-        uint16 MaterialConstraintInfoCount;
-        uint8 SectionCount;
-        uint8  UnknownUInt8[5];
-        break;
-    case 35: // RE9, PRAGMATA SKETCHBOOK - DEMO, MHS3Trial
-        uint64 ConeDriverTableEntry <format=hex>;
-        uint64 ConstraintInfoEntry <format=hex>;
-        uint64 ObjectSettingEntry <format=hex>;
-        uint64 RotExpressionInfoEntry <format=hex>;
-        uint64 RotExpressionMapEntry <format=hex>;
-        uint64 RotExpressionSourceHashIndicesEntry <format=hex>;
-        uint64 RotExpressionHashIndicesEntry <format=hex>;
-        uint64 SkinConstraintTableEntry <format=hex>;
-        uint64 SkinConstraintSourceTableEntry <format=hex>;
-        uint64 AimConstraintTableEntry <format=hex>;
-        uint64 MaterialConstraintInfoEntry <format=hex>;
-        uint64 JointExportGraphInfoEntry <format=hex>;
-        uint64 SectionTableEntry <format=hex>;
-        uint64 DependencyTableEntry <format=hex>;
-        uint64 HashTableEntry <format=hex>;
-        int32  HashTableItemCount;
-        uint16 ConeDriverCount;
-        uint16 ConstraintCount;
-        uint16 DependencyCount;
-        uint16 ObjectSettingCount;
-        uint16 RotExpressionInfoCount;
-        uint16 RotExpressionMapCount;
-        uint16 SkinConstraintCount;
-        uint16 SkinConstraintSourceCount;
-        uint16 AimConstraintCount;
-        uint16 MaterialConstraintInfoCount;
-        uint16 UnknownUInt16;
-        uint8  SectionCount;
-        uint8  UnknownUInt8[13];
-        break;
-    case 29: // MHWs (pre-TU4)
-        uint64 ConeDriverTableEntry <format=hex>;
-        uint64 ConstraintInfoEntry <format=hex>;
-        uint64 ObjectSettingEntry <format=hex>;
-        uint64 RotExpressionInfoEntry <format=hex>;
-        uint64 RotExpressionMapEntry <format=hex>;
-        uint64 SkinConstraintTableEntry <format=hex>;
-        uint64 SkinConstraintSourceTableEntry <format=hex>;
-        uint64 AimConstraintTableEntry <format=hex>;
-        uint64 MaterialConstraintInfoEntry <format=hex>;
-        uint64 JointExportGraphInfoEntry <format=hex>;
-        uint64 SectionTableEntry <format=hex>;
-        uint64 DependencyTableEntry <format=hex>;
-        uint16 ConeDriverCount;
-        uint16 ConstraintCount;
-        uint16 DependencyCount;
-        uint16 ObjectSettingCount;
-        uint16 RotExpressionInfoCount;
-        uint16 RotExpressionMapCount;
-        uint16 SkinConstraintCount;
-        uint16 SkinConstraintSourceCount;
-        uint16 AimConstraintCount;
-        uint16 MaterialConstraintInfoCount;
-        uint8  SectionCount;
-        byte UnknownBytes[11];
-        break;
-    case 24: // DD2
-        uint64 ConeDriverTableEntry <format=hex>;
-        uint64 ConstraintInfoEntry <format=hex>;
-        uint64 ObjectSettingEntry <format=hex>;
-        uint64 RotExpressionInfoEntry <format=hex>;
-        uint64 RotExpressionMapEntry <format=hex>;
-        uint64 SkinConstraintTableEntry <format=hex>;
-        uint64 AimConstraintTableEntry <format=hex>;
-        uint64 MaterialConstraintInfoEntry <format=hex>;
-        uint64 SectionTableEntry <format=hex>;
-        uint64 DependencyTableEntry <format=hex>;
-        uint16 ConeDriverCount;
-        uint16 ConstraintCount;
-        uint16 DependencyCount;
-        uint16 ObjectSettingCount;
-        uint16 RotExpressionInfoCount;
-        uint16 RotExpressionMapCount;
-        uint16 SkinConstraintCount;
-        uint16 AimConstraintCount;
-        uint16 MaterialConstraintInfoCount;
-        byte   UnknownBytes[14];
-        break;
-    case 22: // RE4R, SF6
-        uint64 ConeDriverTableEntry <format=hex>;
-        uint64 ConstraintInfoEntry <format=hex>;
-        uint64 ObjectSettingEntry <format=hex>;
-        uint64 RotExpressionInfoEntry <format=hex>;
-        uint64 RotExpressionMapEntry <format=hex>;
-        uint64 SkinConstraintTableEntry <format=hex>;
-        uint64 AimConstraintTableEntry <format=hex>;
-        uint64 MaterialConstraintInfoEntry <format=hex>;
-        uint64 SectionTableEntry <format=hex>;
-        uint64 DependencyTableEntry <format=hex>;
-        uint16 ConeDriverCount;
-        uint16 ConstraintCount;
-        uint16 DependencyCount;
-        uint16 ObjectSettingCount;
-        uint16 RotExpressionInfoCount;
-        uint16 RotExpressionMapCount;
-        uint16 SkinConstraintCount;
-        uint16 AimConstraintCount;
-        uint16 MaterialConstraintInfoCount;
-        byte   UnknownBytes[14];
-        break;
-    case 21: // MHRS
-        uint64 ConeDriverTableEntry <format=hex>;
-        uint64 ConstraintInfoEntry <format=hex>;
-        uint64 ObjectSettingEntry <format=hex>;
-        uint64 RotExpressionInfoEntry <format=hex>;
-        uint64 RotExpressionMapEntry <format=hex>;
-        uint64 SkinConstraintTableEntry <format=hex>;
-        uint64 AimConstraintTableEntry <format=hex>;
-        uint64 SectionTableEntry <format=hex>;
-        uint64 DependencyTableEntry <format=hex>;
-        uint16 ConeDriverCount;
-        uint16 ConstraintCount;
-        uint16 DependencyCount;
-        uint16 ObjectSettingCount;
-        uint16 RotExpressionInfoCount;
-        uint16 RotExpressionMapCount;
-        uint16 SkinConstraintCount;
-        uint16 AimConstraintCount;
-        byte   UnknownBytes[8];
-        break;
-    case 16: // RE8
-        uint64 ConeDriverTableEntry <format=hex>;
-        uint64 ConstraintInfoEntry <format=hex>;
-        uint64 ObjectSettingEntry <format=hex>;
-        uint64 RotExpressionInfoEntry <format=hex>;
-        uint64 RotExpressionMapEntry <format=hex>;
-        uint64 SkinConstraintTableEntry <format=hex>;
-        uint64 AimConstraintTableEntry <format=hex>;
-        uint64 SectionTableEntry <format=hex>;
-        uint16 ConeDriverCount;
-        uint16 ConstraintCount;
-        uint16 ObjectSettingCount;
-        uint16 RotExpressionInfoCount;
-        uint16 RotExpressionMapCount;
-        uint16 SkinConstraintCount;
-        uint16 AimConstraintCount;
-        byte   UnknownBytes[2];
-        break;
-    case 12: // RE3R
-        uint64 ConeDriverTableEntry <format=hex>;
-        uint64 ConstraintInfoEntry <format=hex>;
-        uint64 ObjectSettingEntry <format=hex>;
-        uint64 RotExpressionInfoEntry <format=hex>;
-        uint64 RotExpressionMapEntry <format=hex>;
-        uint64 SkinConstraintTableEntry <format=hex>;
-        uint64 SkinConstraintSourceTableEntry <format=hex>;
-        uint16 ConeDriverCount;
-        uint16 ConstraintCount;
-        uint16 ObjectSettingCount;
-        uint16 RotExpressionInfoCount;
-        uint16 RotExpressionMapCount;
-        uint16 SkinConstraintCount;
-        uint16 SkinConstraintSourceCount;
-        byte   UnknownBytes[10];
-        break;
-    case 11: // RE2R, DMC5
-        uint64 ConeDriverTableEntry <format=hex>;
-        uint64 ConstraintInfoEntry <format=hex>;
-        uint64 ObjectSettingEntry <format=hex>;
-        uint64 RotExpressionInfoEntry <format=hex>;
-        uint64 RotExpressionMapEntry <format=hex>;
-        uint64 SkinConstraintTableEntry <format=hex>;
-        uint16 ConeDriverCount;
-        uint16 ConstraintCount;
-        uint16 ObjectSettingCount;
-        uint16 RotExpressionInfoCount;
-        uint16 RotExpressionMapCount;
-        uint16 SkinConstraintCount;
-        byte   UnknownBytes[4];
-        break;
-    default:
-        uint64 ConeDriverTableEntry <format=hex>;
-        uint64 ConstraintInfoEntry <format=hex>;
-        uint64 ObjectSettingEntry <format=hex>;
-        break;
-    }
+                       // Just some OCD's...
+                       uint64 ConeDriverTableEntry <format=hex>;
+                       uint64 ConstraintInfoEntry <format=hex>;
+                       uint64 ObjectSettingEntry <format=hex>;
+                       uint64 RotExpressionInfoEntry <format=hex>;
+                       uint64 RotExpressionMapEntry <format=hex>;
+    if (Version >= 35) uint64 RotExpressionSourceHashIndicesEntry <format=hex>;
+    if (Version >= 35) uint64 RotExpressionHashIndicesEntry <format=hex>;
+                       uint64 SkinConstraintTableEntry <format=hex>;
+    if (Version >= 29) uint64 SkinConstraintSourceTableEntry <format=hex>;
+    if (Version >= 12) uint64 AimConstraintTableEntry <format=hex>;
+    if (Version >= 22) uint64 MaterialConstraintInfoEntry <format=hex>;
+    if (Version >= 29) uint64 JointExportGraphInfoEntry <format=hex>;
+    if (Version >= 16) uint64 SectionTableEntry <format=hex>;
+    if (Version >  16) uint64 DependencyTableEntry <format=hex>;
+    if (Version >= 35) uint64 HashTableEntry <format=hex>;
+    if (Version >= 36) uint64 SkinConstraintHashTableEntry;
+    
+    if (Version >= 35) int32  HashTableItemCount;
+                       uint16 ConeDriverCount;
+                       uint16 ConstraintCount;
+    if (Version >= 16) uint16 DependencyCount;
+                       uint16 ObjectSettingCount;
+                       uint16 RotExpressionInfoCount;
+                       uint16 RotExpressionMapCount;
+                       uint16 SkinConstraintCount;
+    if (Version >= 36) uint16 SkinConstraintHashTableItemCount;
+    if (Version >= 29) uint16 SkinConstraintSourceCount;
+    if (Version >= 12) uint16 AimConstraintCount;
+    if (Version >= 22) uint16 MaterialConstraintInfoCount;
+    if (Version >= 35 
+    && Version != 102) uint16 UnknownUInt16;
+    if (Version >= 29) uint8  SectionCount;
+                       uint8  Padding[16 - FTell() % 16];
 } 
 HEADER <name="JCNS Header">;
 
-
-// BODY
 typedef struct 
 {
     if (header.ConeDriverCount > 0)
@@ -1125,7 +954,7 @@ typedef struct
         ObjectSettingList Settings;
     }
 } 
-BODY0 <name="JCNS Section (Type 0: Ranges)", fgcolor=0xFFBD9A, open=true>;
+SECTION0 <name="JCNS Section (Type 0: Transformation)", fgcolor=0xFFBD9A, open=true>;
 
 typedef struct 
 {
@@ -1146,7 +975,7 @@ typedef struct
         } RotExpressionJointHashes;
     }
 }
-BODY1 <name="JCNS Section (Type 1: Rotation Expression)", fgcolor=0xBDFF9A, open=true>;
+SECTION1 <name="JCNS Section (Type 1: Rotation Expression)", fgcolor=0xBDFF9A, open=true>;
 
 typedef struct
 {
@@ -1177,20 +1006,20 @@ typedef struct
         { hash SourceHashes[header.SkinConstraintSourceCount]; }
     }
 }
-BODY2 <name="JCNS Section (Type 2: Skin Constraints)", open=true, fgcolor=0xFF7CEF>;
+SECTION2 <name="JCNS Section (Type 2: Skin Constraints)", open=true, fgcolor=0xFF7CEF>;
 
 typedef struct
 {
     ConstraintAim AimConstraint[header.AimConstraintCount] <optimize=false>;
 }
-BODY3 <name="JCNS Section (Type 3: Aim)", open=true, fgcolor=0xEDDC7C>;
+SECTION3 <name="JCNS Section (Type 3: Aim)", open=true, fgcolor=0xEDDC7C>;
 
 typedef struct
 {
     FSeek(header.MaterialConstraintInfoEntry);
     MatCnsInfo MaterialConstraintInfo[header.MaterialConstraintInfoCount] <optimize=false>;
 }
-BODY4 <name="JCNS Section (Type 4: Material Constraints)", open=true, fgcolor=0x00EDFF>;
+SECTION4 <name="JCNS Section (Type 4: Material Constraints)", open=true, fgcolor=0x00EDFF>;
 
 typedef struct 
 {
@@ -1200,7 +1029,7 @@ typedef struct
     wstring Path;
     FSeek(returnPos);
 } 
-BODY5 <name="JCNS Section (Type 5: Joint Export Graph)", open=true, fgcolor=0x0000ED>;
+SECTION5 <name="JCNS Section (Type 5: Joint Export Graph)", open=true, fgcolor=0x0000ED>;
 
 typedef struct(uint8 SectionCount)
 {
@@ -1208,9 +1037,8 @@ typedef struct(uint8 SectionCount)
     local uint8 _ = 0;
     for (_; _ < SectionCount; ++_)
     {
-        //uint32 SectionType;
         enum<uint32> {
-            Ranges,
+            Transformation,
             RotationExpressions,
             SkinConstraints,
             Aim,
@@ -1233,260 +1061,60 @@ HASHTBL <name="JCNS Hash Table", open=true, fgcolor=0x45C032>;
 uint32 Version;
 HEADER header;
 
-switch (Version)
+if (header.ConeDriverCount > 0 || header.ConstraintCount > 0)
 {
-    case 102: // MHWs (TU4)
-        if (header.ConeDriverCount > 0 || header.ConstraintCount > 0)
-        {
-            FSeek(header.ConeDriverTableEntry);
-            BODY0 body0;
-        }
-        if (header.RotExpressionInfoCount > 0)
-        {
-            FSeek(header.RotExpressionInfoEntry);
-            BODY1 body1;
-        }
-        if (header.SkinConstraintCount > 0)
-        {
-            FSeek(header.SkinConstraintTableEntry);
-            BODY2 body2;
-        }
-        if (header.AimConstraintCount > 0)
-        {
-            FSeek(header.AimConstraintTableEntry);
-            BODY3 body3;
-        }
-        if (header.MaterialConstraintInfoCount > 0)
-        {
-            FSeek(header.MaterialConstraintInfoEntry);
-            BODY4 body4;
-        }
-        if (header.JointExportGraphInfoEntry > 0)
-        {
-            FSeek(header.JointExportGraphInfoEntry);
-            BODY5 body5;
-        }
-        if (header.SectionCount > 0)
-        {
-            FSeek(header.SectionTableEntry);
-            SECTIONTBL sectiontbl(header.SectionCount);
-        }
-        if (header.HashTableItemCount > 0)
-        {
-            FSeek(header.HashTableEntry);
-            HASHTBL HashTable;
-        }
-        break;
-    case 35: // RE9, PRAGMATA SKETCHBOOK - DEMO, MHS3Trial
-        if (header.ConeDriverCount > 0 || header.ConstraintCount > 0)
-        {
-            FSeek(header.ConeDriverTableEntry);
-            BODY0 body0;
-        }
-        if (header.RotExpressionInfoCount > 0)
-        {
-            FSeek(header.RotExpressionInfoEntry);
-            BODY1 body1;
-        }
-        if (header.SkinConstraintCount > 0)
-        {
-            FSeek(header.SkinConstraintTableEntry);
-            BODY2 body2;
-        }
-        if (header.AimConstraintCount > 0)
-        {
-            FSeek(header.AimConstraintTableEntry);
-            BODY3 body3;
-        }
-        if (header.MaterialConstraintInfoCount > 0)
-        {
-            FSeek(header.MaterialConstraintInfoEntry);
-            BODY4 body4;
-        }
-        if (header.JointExportGraphInfoEntry > 0)
-        {
-            FSeek(header.JointExportGraphInfoEntry);
-            BODY5 body5;
-        }
-        if (header.SectionCount > 0)
-        {
-            FSeek(header.SectionTableEntry);
-            SECTIONTBL sectiontbl(header.SectionCount);
-        }
-        if (header.HashTableItemCount > 0)
-        {
-            FSeek(header.HashTableEntry);
-            HASHTBL HashTable;
-        }
-        break;
-    case 29: // MHWs
-        if (header.ConeDriverCount > 0 || header.ConstraintCount > 0)
-        {
-            BODY0 body0;
-        }
-        if (header.RotExpressionInfoCount > 0)
-        {
-            FSeek(header.RotExpressionInfoEntry);
-            BODY1 body1;
-        }
-        if (header.SkinConstraintCount > 0)
-        {
-            FSeek(header.SkinConstraintTableEntry);
-            BODY2 body2;
-        }
-        if (header.AimConstraintCount > 0)
-        {
-            FSeek(header.AimConstraintTableEntry);
-            BODY3 body3;
-        }
-        if (header.MaterialConstraintInfoCount > 0)
-        {
-            FSeek(header.MaterialConstraintInfoEntry);
-            BODY4 body4;
-        }
-        if (header.JointExportGraphInfoEntry > 0)
-        {
-            FSeek(header.JointExportGraphInfoEntry);
-            BODY5 body5;
-        }
-        if (header.SectionCount > 0)
-        {
-            FSeek(header.SectionTableEntry);
-            SECTIONTBL sectiontbl(header.SectionCount);
-        }
-        break;
-    case 24: // DD2
-        if (header.ConeDriverCount > 0 || header.ConstraintCount > 0)
-        {
-            BODY0 body0;
-        }
-        if (header.RotExpressionInfoCount > 0)
-        {
-            FSeek(header.RotExpressionInfoEntry);
-            BODY1 body1;
-        }
-        if (header.SkinConstraintCount > 0)
-        {
-            FSeek(header.SkinConstraintTableEntry);
-            BODY2 body2;
-        }
-        if (header.AimConstraintCount > 0)
-        {
-            FSeek(header.AimConstraintTableEntry);
-            BODY3 body3;
-        }
-        if (header.MaterialConstraintInfoCount > 0)
-        {
-            FSeek(header.MaterialConstraintInfoEntry);
-            BODY4 body4;
-        }
-        FSeek(header.SectionTableEntry);
-        SECTIONTBL sectiontbl(5);
-        break;
-    case 22: // RE4R
-        if (header.ConeDriverCount > 0 || header.ConstraintCount > 0)
-        {
-            BODY0 body0;
-        }
-        if (header.RotExpressionInfoCount > 0)
-        {
-            FSeek(header.RotExpressionInfoEntry);
-            BODY1 body1;
-        }
-        if (header.SkinConstraintCount > 0)
-        {
-            FSeek(header.SkinConstraintTableEntry);
-            BODY2 body2;
-        }
-        if (header.AimConstraintCount > 0)
-        {
-            FSeek(header.AimConstraintTableEntry);
-            BODY3 body3;
-        }
-        if (header.MaterialConstraintInfoCount > 0)
-        {
-            FSeek(header.MaterialConstraintInfoEntry);
-            BODY4 body4;
-        }
-        FSeek(header.SectionTableEntry);
-        SECTIONTBL sectiontbl(5);
-        break;
-    case 21: // MHRS
-        if (header.ConeDriverCount > 0 || header.ConstraintCount > 0)
-        {
-            BODY0 body0;
-        }
-        if (header.RotExpressionInfoCount > 0)
-        {
-            FSeek(header.RotExpressionInfoEntry);
-            BODY1 body1;
-        }
-        if (header.SkinConstraintCount > 0)
-        {
-            FSeek(header.SkinConstraintTableEntry);
-            BODY2 body2;
-        }
-        if (header.AimConstraintCount > 0)
-        {
-            FSeek(header.AimConstraintTableEntry);
-            BODY3 body3;
-        }
-        FSeek(header.SectionTableEntry);
-        SECTIONTBL sectiontbl(4);
-        break;
-    case 16: // RE8
-        if (header.ConeDriverCount > 0 || header.ConstraintCount > 0)
-        {
-            BODY0 body0;
-        }
-        if (header.RotExpressionInfoCount > 0)
-        {
-            FSeek(header.RotExpressionInfoEntry);
-            BODY1 body1;
-        }
-        if (header.SkinConstraintCount > 0)
-        {
-            FSeek(header.SkinConstraintTableEntry);
-            BODY2 body2;
-        }
-        if (header.AimConstraintCount > 0)
-        {
-            FSeek(header.AimConstraintTableEntry);
-            BODY3 body3;
-        }
-        FSeek(header.SectionTableEntry);
-        SECTIONTBL sectiontbl(4);
-        break;
-    case 12: // RE3R
-        if (header.ConeDriverCount > 0 || header.ConstraintCount > 0)
-        {
-            BODY0 body0;
-        }
-        if (header.RotExpressionInfoCount > 0)
-        {
-            FSeek(header.RotExpressionInfoEntry);
-            BODY1 body1;
-        }
-        if (header.SkinConstraintCount > 0)
-        {
-            FSeek(header.SkinConstraintTableEntry);
-            BODY2 body2;
-        }
-        break;
-    case 11: // RE2R, DMC5
-        if (header.ConeDriverCount > 0 || header.ConstraintCount > 0)
-        {
-            BODY0 body0;
-        }
-        if (header.RotExpressionInfoCount > 0)
-        {
-            FSeek(header.RotExpressionInfoEntry);
-            BODY1 body1;
-        }
-        if (header.SkinConstraintCount > 0)
-        {
-            FSeek(header.SkinConstraintTableEntry);
-            BODY2 body2;
-        }
-        break;
+    FSeek(header.ConeDriverTableEntry);
+    SECTION0 section0;
+}
+
+if (header.RotExpressionInfoCount > 0)
+{
+    FSeek(header.RotExpressionInfoEntry);
+    SECTION1 section1;
+}
+
+if (header.SkinConstraintCount > 0)
+{
+    FSeek(header.SkinConstraintTableEntry);
+    SECTION2 section2;
+}
+
+if (Version >= 16 && header.AimConstraintCount > 0)
+{
+    FSeek(header.AimConstraintTableEntry);
+    SECTION3 section3;
+}
+
+if (Version >= 22 && header.MaterialConstraintInfoCount > 0)
+{
+    FSeek(header.MaterialConstraintInfoEntry);
+    SECTION4 section4;
+}
+
+if (Version >= 29 && header.JointExportGraphInfoEntry > 0)
+{
+    FSeek(header.JointExportGraphInfoEntry);
+    SECTION5 section5;
+}
+
+if (Version >= 29 && header.SectionCount > 0)
+{
+    FSeek(header.SectionTableEntry);
+    SECTIONTBL sectiontbl(header.SectionCount);
+} 
+else if (Version >= 22)
+{
+    FSeek(header.SectionTableEntry);
+    SECTIONTBL sectiontbl(5);
+}
+else if (Version >= 16)
+{
+    FSeek(header.SectionTableEntry);
+    SECTIONTBL sectiontbl(4);
+}
+
+if (Version >= 35 && header.HashTableItemCount > 0)
+{
+    FSeek(header.HashTableEntry);
+    HASHTBL HashTable;
 }
